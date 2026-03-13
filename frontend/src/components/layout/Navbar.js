@@ -18,26 +18,29 @@ export default function Navbar() {
           <Coins size={20} color="white" />
         </div>
         <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-        EduTrace AI
+          EduTrace AI
         </span>
       </Link>
-      
+
       <div className="nav-links">
         {user ? (
           <>
             <Link href="/dashboard" className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}>Dashboard</Link>
             <Link href="/store" className={`nav-link ${pathname === '/store' ? 'active' : ''}`}>Store</Link>
-            
+            {user.role === 'student' && (
+              <Link href="/doubt-solver" className={`nav-link ${pathname === '/doubt-solver' ? 'active' : ''}`}>Doubt Solver</Link>
+            )}
+
             <div className="badge badge-yellow" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <Coins size={14} />
               <span>{coins} Coins</span>
             </div>
-            
+
             <Link href="/profile" className="btn btn-secondary" style={{ padding: '0.5rem 1rem' }}>
               <UserIcon size={16} />
               <span className="hide-mobile">{user.name}</span>
             </Link>
-            
+
             <button onClick={logout} className="btn btn-danger" style={{ padding: '0.5rem' }}>
               <LogOut size={16} />
             </button>

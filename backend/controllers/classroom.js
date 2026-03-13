@@ -15,6 +15,7 @@ exports.createClassroom = async (req, res) => {
 
     let classCode = generateClassCode();
     let isUnique = false;
+    
     while (!isUnique) {
       const existing = await Classroom.findOne({ classCode });
       if (!existing) isUnique = true;

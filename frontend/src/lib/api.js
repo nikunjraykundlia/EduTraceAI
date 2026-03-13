@@ -12,7 +12,8 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = Cookies.get('token');
+    // Check both cookie and localStorage (with safety check for SSR)
+    const token = Cookies.get('token') || (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

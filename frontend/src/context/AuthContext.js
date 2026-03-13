@@ -14,18 +14,24 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const checkUserLoggedIn = async () => {
-      const token = Cookies.get('token');
+      // Check both cookie and localStorage for robustness
+      const token = Cookies.get('token') || localStorage.getItem('accessToken');
+
       if (token) {
+        // Ensure both are in sync
+        if (!Cookies.get('token')) Cookies.set('token', token, { expires: 7, path: '/' });
+        if (!localStorage.getItem('accessToken')) localStorage.setItem('accessToken', token);
+
         try {
           const res = await api.get('/auth/me');
           if (res.data.success) {
             setUser(res.data.user);
           } else {
-            Cookies.remove('token');
+            handleClearAuth();
           }
         } catch (error) {
           console.error("Auth check failed:", error);
-          Cookies.remove('token');
+          handleClearAuth();
         }
       }
       setLoading(false);
@@ -38,7 +44,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await api.post('/auth/login', { email, password });
       if (res.data.success) {
-        Cookies.set('token', res.data.token, { expires: 7 });
+        const token = res.data.token;
+        // Set both for redundancy and to satisfy user requirement
+        Cookies.set('token', token, { expires: 7, path: '/' });
+        localStorage.setItem('accessToken', token);
         setUser(res.data.user);
         router.push('/dashboard');
         return true;
@@ -53,7 +62,9 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await api.post('/auth/signup', userData);
       if (res.data.success) {
-        Cookies.set('token', res.data.token, { expires: 7 });
+        const token = res.data.token;
+        Cookies.set('token', token, { expires: 7, path: '/' });
+        localStorage.setItem('accessToken', token);
         setUser(res.data.user);
         router.push('/dashboard');
         return true;
@@ -64,9 +75,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    Cookies.remove('token');
+  const handleClearAuth = () => {
+    Cookies.remove('token', { path: '/' });
+    localStorage.removeItem('accessToken');
     setUser(null);
+  };
+
+  const logout = () => {
+    handleClearAuth();
     router.push('/auth/login');
   };
 

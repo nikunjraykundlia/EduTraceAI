@@ -15,34 +15,47 @@ exports.getVideo = async (req, res) => {
 
 exports.submitVideo = async (req, res) => {
   try {
-    const { youtubeUrl } = req.body;
-    
-    // Fetch transcript
+    const { youtubeUrl, transcript } = req.body;
+
     let transcriptData;
-    try {
-      transcriptData = await fetchTranscript(youtubeUrl);
-    } catch (e) {
-      return res.status(400).json({ success: false, error: 'TRANSCRIPT_NOT_AVAILABLE', message: e.message });
+
+    // If transcript is provided in body (from advanced pipeline), use it
+    if (transcript) {
+      console.log('Using pre-extracted transcript from request body');
+      transcriptData = typeof transcript === 'string' ? { raw: transcript, segments: [] } : transcript;
+
+      // Helper to get videoId if not present
+      if (!transcriptData.videoId) {
+        const { extractVideoId } = require('../services/transcriptService');
+        transcriptData.videoId = extractVideoId(youtubeUrl);
+      }
+    } else {
+      // Fallback to basic transcript fetch
+      try {
+        transcriptData = await fetchTranscript(youtubeUrl);
+      } catch (e) {
+        return res.status(400).json({ success: false, error: 'TRANSCRIPT_NOT_AVAILABLE', message: e.message });
+      }
     }
 
     // Save Video entry
     const video = await Video.create({
       youtubeUrl,
-      youtubeVideoId: transcriptData.videoId,
-      title: 'YouTube Video', // In a real app we'd fetch actual metadata
+      youtubeVideoId: transcriptData.videoId || (youtubeUrl.includes('v=') ? youtubeUrl.split('v=')[1].split('&')[0] : youtubeUrl.split('/').pop()),
+      title: 'YouTube Video',
       thumbnail: `https://img.youtube.com/vi/${transcriptData.videoId}/default.jpg`,
       transcript: {
-        raw: transcriptData.raw,
-        segments: transcriptData.segments
+        raw: transcriptData.raw || transcriptData,
+        segments: transcriptData.segments || []
       },
       uploadedBy: req.user.id,
-      mode: 'personal' // explicitly personal mode
+      mode: 'personal'
     });
 
     res.status(200).json({
       success: true,
       video,
-      message: 'Transcript extracted successfully. Generating quiz...'
+      message: 'Video added successfully.'
     });
 
   } catch (error) {
@@ -53,7 +66,7 @@ exports.submitVideo = async (req, res) => {
 exports.generateQuiz = async (req, res) => {
   try {
     const { videoId, numMCQs = 10, numSAQs = 5, difficulty = 'medium' } = req.body;
-    
+
     const video = await Video.findById(videoId);
     if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
 
@@ -68,7 +81,7 @@ exports.generateQuiz = async (req, res) => {
         num_saqs: numSAQs,
         difficulty
       });
-    } catch(err) {
+    } catch (err) {
       return res.status(504).json({ success: false, error: 'AI_PROCESSING_TIMEOUT', message: err.message });
     }
 
@@ -112,7 +125,7 @@ exports.generateSummary = async (req, res) => {
         video_id: video._id.toString(),
         video_title: video.title
       });
-    } catch(err) {
+    } catch (err) {
       return res.status(504).json({ success: false, error: 'AI_PROCESSING_TIMEOUT', message: err.message });
     }
 

@@ -5,7 +5,7 @@ import { useCoins } from '@/context/CoinsContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { BookOpen, GraduationCap, Video, Trophy, BarChart3, Settings } from 'lucide-react';
+import { BookOpen, GraduationCap, Video, Trophy, BarChart3 } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();

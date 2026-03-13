@@ -30,6 +30,7 @@ app.use('/api/quiz', require('./routes/quiz'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/coins', require('./routes/coins'));
 app.use('/api/store', require('./routes/store'));
+app.use('/api/transcription', require('./routes/transcription'));
 
 const PORT = process.env.PORT || 5000;
 
