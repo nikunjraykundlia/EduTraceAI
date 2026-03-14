@@ -1,6 +1,8 @@
 const Quiz = require('../models/Quiz');
 const QuizAttempt = require('../models/QuizAttempt');
 const User = require('../models/User');
+const PDFDocument = require('pdfkit');
+const mongoose = require('mongoose');
 
 // @desc    Start a quiz attempt
 // @route   POST /api/quiz/:quizId/start
@@ -50,12 +52,18 @@ exports.submitQuizAttempt = async (req, res) => {
   try {
     const { quizId } = req.params;
     const { attemptId, mcqAnswers, saqAnswers } = req.body;
+    console.log(`[Quiz Submission] Submitting attempt: ${attemptId} for quiz: ${quizId}`);
+    console.log(`[Quiz Submission] Answers received:`, mcqAnswers);
 
     const quiz = await Quiz.findById(quizId);
-    if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
+    if (!quiz) {
+      console.error(`[Quiz Submission] Quiz not found: ${quizId}`);
+      return res.status(404).json({ success: false, message: 'Quiz not found' });
+    }
 
     const attempt = await QuizAttempt.findById(attemptId);
     if (!attempt || attempt.status !== 'in-progress') {
+      console.warn(`[Quiz Submission] Invalid attempt: ${attemptId}, status: ${attempt?.status}`);
       return res.status(400).json({ success: false, message: 'Invalid or already completed attempt' });
     }
 
@@ -63,9 +71,12 @@ exports.submitQuizAttempt = async (req, res) => {
     let incorrectCount = 0;
     const detailedResults = [];
 
+    const answersList = Array.isArray(mcqAnswers) ? mcqAnswers : [];
+
     // Calculate MCQ score
-    for (const ans of mcqAnswers) {
-      const question = quiz.mcqs.find(q => q._id.toString() === ans.questionId);
+    for (const ans of answersList) {
+      if (!ans.questionId) continue;
+      const question = quiz.mcqs.find(q => q._id && q._id.toString() === ans.questionId);
       if (question) {
         const isCorrect = question.correctAnswer === ans.selectedAnswer;
         if (isCorrect) correctCount++;
@@ -83,15 +94,29 @@ exports.submitQuizAttempt = async (req, res) => {
       }
     }
 
+    // Reward user
+    console.log(`[Quiz Submission] Loading user: ${req.user.id}`);
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      console.error(`[Quiz Submission] User not found: ${req.user.id}`);
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
     // SAQs would be AI-graded or instructor-graded in a full app. We'll skip auto-grading for simplicity here.
 
     // Calculate Coins: +3 correct, -1 incorrect, min 0
     let coinsEarned = Math.max(0, (correctCount * 3) - (incorrectCount * 1));
     const mcqScore = correctCount;
-    const totalScore = quiz.mcqs.length > 0 ? (mcqScore / quiz.mcqs.length) * 100 : 0;
+    const totalScore = quiz.mcqs.length > 0 ? Math.round((mcqScore / quiz.mcqs.length) * 100) : 0;
 
-    attempt.mcqAnswers = mcqAnswers;
-    attempt.saqAnswers = saqAnswers;
+    attempt.mcqAnswers = answersList
+      .filter(a => mongoose.Types.ObjectId.isValid(a.questionId))
+      .map(a => ({
+        questionId: new mongoose.Types.ObjectId(a.questionId),
+        selectedAnswer: a.selectedAnswer,
+        isCorrect: quiz.mcqs.find(q => q._id && q._id.toString() === a.questionId)?.correctAnswer === a.selectedAnswer
+      }));
+    attempt.saqAnswers = Array.isArray(saqAnswers) ? saqAnswers : [];
     attempt.mcqScore = mcqScore;
     attempt.totalScore = totalScore;
     attempt.coinsEarned = coinsEarned;
@@ -99,14 +124,14 @@ exports.submitQuizAttempt = async (req, res) => {
     attempt.completedAt = new Date();
     await attempt.save();
 
-    // Reward user
-    const user = await User.findById(req.user.id);
     user.coins += coinsEarned;
     user.totalCoinsEarned += coinsEarned;
     user.quizzesTaken += 1;
     // rough running average update
     user.averageScore = ((user.averageScore * (user.quizzesTaken - 1)) + totalScore) / user.quizzesTaken;
     await user.save();
+
+    console.log(`[Quiz Submission] Success. Score: ${totalScore}%`);
 
     res.status(200).json({
       success: true,
@@ -122,6 +147,7 @@ exports.submitQuizAttempt = async (req, res) => {
     });
 
   } catch (error) {
+    console.error(`[Quiz Submission] CRITICAL ERROR:`, error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -172,6 +198,85 @@ exports.getQuizResults = async (req, res) => {
       } 
     });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Download quiz results as PDF
+// @route   GET /api/quiz/:quizId/download/:attemptId
+// @access  Private
+exports.downloadQuizPDF = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    const attempt = await QuizAttempt.findById(attemptId).populate('quizId');
+    if (!attempt) return res.status(404).json({ success: false, message: 'Attempt not found' });
+
+    const quiz = attempt.quizId;
+    const user = await User.findById(attempt.studentId);
+
+    const doc = new PDFDocument({ margin: 50 });
+    const filename = `Assessment_Report_${attemptId}.pdf`;
+
+    res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-type', 'application/pdf');
+
+    doc.pipe(res);
+
+    // Title
+    doc.fontSize(24).font('Helvetica-Bold').text('Assessment Report', { align: 'center' });
+    doc.moveDown();
+    
+    // Header Info
+    doc.fontSize(12).font('Helvetica');
+    doc.text(`Student: ${user.name}`);
+    doc.text(`Email: ${user.email}`);
+    doc.text(`Quiz: ${quiz.title}`);
+    doc.text(`Date: ${new Date(attempt.completedAt).toLocaleString()}`);
+    doc.text(`Difficulty: ${quiz.difficulty.toUpperCase()}`);
+    doc.moveDown();
+
+    // Score Summary
+    doc.fontSize(16).font('Helvetica-Bold').text('Score Summary', { underline: true });
+    doc.fontSize(14).font('Helvetica');
+    doc.text(`Total Score: ${attempt.totalScore}%`);
+    doc.text(`Correct Answers: ${attempt.mcqScore} / ${quiz.mcqs.length}`);
+    doc.text(`Coins Earned: ${attempt.coinsEarned}`);
+    doc.moveDown(2);
+
+    // Detailed Results
+    doc.fontSize(16).font('Helvetica-Bold').text('Detailed Review', { underline: true });
+    doc.moveDown();
+
+    quiz.mcqs.forEach((q, idx) => {
+      const studentAns = attempt.mcqAnswers.find(ans => ans.questionId.toString() === q._id.toString());
+      const isCorrect = studentAns ? studentAns.selectedAnswer === q.correctAnswer : false;
+
+      doc.fontSize(12).font('Helvetica-Bold').text(`${idx + 1}. ${q.question}`);
+      doc.fontSize(10).font('Helvetica');
+      
+      q.options.forEach(opt => {
+        let optText = `${opt.label}) ${opt.text}`;
+        if (opt.label === q.correctAnswer) optText += ' [CORRECT]';
+        if (studentAns && opt.label === studentAns.selectedAnswer) {
+          optText += isCorrect ? ' (Your Answer - Correct)' : ' (Your Answer - Incorrect)';
+        }
+        doc.text(optText, { indent: 20 });
+      });
+
+      doc.fillColor(isCorrect ? '#2ecc71' : '#e74c3c');
+      doc.text(isCorrect ? 'Correct' : `Incorrect (Correct: ${q.correctAnswer})`, { indent: 20 });
+      doc.fillColor('#000000');
+      
+      if (q.explanation) {
+        doc.font('Helvetica-Oblique').text(`Explanation: ${q.explanation}`, { indent: 20 });
+      }
+      doc.moveDown();
+    });
+
+    doc.end();
+
+  } catch (error) {
+    console.error('[PDF Gen] Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
