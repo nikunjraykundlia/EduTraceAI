@@ -1,34 +1,56 @@
 'use client';
 
 import { useState } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import { Youtube, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function TestPage() {
     const [youtubeUrl, setYoutubeUrl] = useState('');
     const [loading, setLoading] = useState(false);
+    const [transcribing, setTranscribing] = useState(false);
+    const [transcribed, setTranscribed] = useState(false);
     const [error, setError] = useState('');
+    const [audioUrl, setAudioUrl] = useState('');
     const [questions, setQuestions] = useState([]);
     const [selectedAnswers, setSelectedAnswers] = useState({});
 
-    const handleGenerateQuiz = async (e) => {
+    const handleTranscribe = async (e) => {
         e.preventDefault();
         if (!youtubeUrl) return;
 
-        // Basic validation
         if (!/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/.test(youtubeUrl)) {
             setError('Please enter a valid YouTube URL');
             return;
         }
 
+        setTranscribing(true);
+        setError('');
+        setTranscribed(false);
+
+        try {
+            const response = await api.post('/transcription/advanced', { youtubeUrl });
+            if (response.data && response.data.audioUrl) {
+                setAudioUrl(response.data.audioUrl);
+            }
+            setTranscribed(true);
+        } catch (err) {
+            console.error('Transcription error:', err);
+            setError('Failed to transcribe video. Please try again.');
+        } finally {
+            setTranscribing(false);
+        }
+    };
+
+    const handleGenerateQuiz = async () => {
         setLoading(true);
         setError('');
         setQuestions([]);
         setSelectedAnswers({});
 
         try {
-            const response = await axios.post('https://nikunjn8n.up.railway.app/webhook/get-quiz-queries', {
-                youtube_url: youtubeUrl
+            const response = await api.post('/test/generate', {
+                youtubeUrl,
+                audioUrl // Pass the reused audio URL if available
             });
 
             // Extract questions from the response payload
@@ -77,7 +99,7 @@ export default function TestPage() {
             </div>
 
             <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
-                <form onSubmit={handleGenerateQuiz} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                <form onSubmit={handleTranscribe} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                     <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
                         <div style={{ position: 'relative' }}>
                             <Youtube
@@ -89,28 +111,56 @@ export default function TestPage() {
                                 type="url"
                                 className="input-field"
                                 value={youtubeUrl}
-                                onChange={(e) => setYoutubeUrl(e.target.value)}
+                                onChange={(e) => {
+                                    setYoutubeUrl(e.target.value);
+                                    setTranscribed(false);
+                                    setQuestions([]);
+                                }}
                                 required
                                 placeholder="https://www.youtube.com/watch?v=..."
-                                disabled={loading}
+                                disabled={loading || transcribing}
                                 style={{ padding: '1rem', paddingLeft: '3rem', fontSize: '1.1rem' }}
                             />
                         </div>
                     </div>
-                    <button
-                        type="submit"
-                        className="btn btn-primary"
-                        style={{ padding: '1rem 2rem', fontSize: '1.1rem', height: '54px' }}
-                        disabled={loading || !youtubeUrl}
-                    >
-                        {loading ? (
-                            <>
-                                <Loader2 size={20} className="animate-spin" style={{ marginRight: '0.5rem' }} />
-                                Generating...
-                            </>
-                        ) : 'Generate Quiz'}
-                    </button>
+                    {!transcribed ? (
+                        <button
+                            type="submit"
+                            className="btn btn-primary"
+                            style={{ padding: '1rem 2rem', fontSize: '1.1rem', height: '54px' }}
+                            disabled={transcribing || !youtubeUrl}
+                        >
+                            {transcribing ? (
+                                <>
+                                    <Loader2 size={20} className="animate-spin" style={{ marginRight: '0.5rem' }} />
+                                    Transcribing...
+                                </>
+                            ) : 'Transcribe Video'}
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={handleGenerateQuiz}
+                            className="btn btn-primary"
+                            style={{ padding: '1rem 2rem', fontSize: '1.1rem', height: '54px', background: 'var(--success)' }}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 size={20} className="animate-spin" style={{ marginRight: '0.5rem' }} />
+                                    Generating...
+                                </>
+                            ) : 'Generate Quiz'}
+                        </button>
+                    )}
                 </form>
+
+                {transcribed && !loading && questions.length === 0 && (
+                    <div className="badge badge-green" style={{ width: '100%', padding: '0.75rem', marginTop: '1.5rem', justifyContent: 'center' }}>
+                        <CheckCircle2 size={18} style={{ marginRight: '0.5rem' }} />
+                        Transcription ready! You can now generate the quiz.
+                    </div>
+                )}
 
                 {error && (
                     <div className="badge badge-red" style={{ width: '100%', padding: '0.75rem', marginTop: '1.5rem', justifyContent: 'center' }}>
@@ -120,14 +170,26 @@ export default function TestPage() {
                 )}
             </div>
 
-            {loading && (
+            {transcribing && (
                 <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', marginTop: '2rem' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center', marginBottom: '1.5rem' }}>
-                        <p style={{ color: 'var(--accent-primary)', fontWeight: '600', fontSize: '1.1rem' }}>AI is analyzing video content...</p>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>We're extracting the best MCQ questions for you. This take 30-60 seconds.</p>
+                        <p style={{ color: 'var(--accent-primary)', fontWeight: '600', fontSize: '1.1rem' }}>AI is transcribing video content...</p>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>This takes about 30-45 seconds. Please wait.</p>
                     </div>
                     <div style={{ width: '100%', height: '6px', background: 'var(--bg-tertiary)', borderRadius: '10px', overflow: 'hidden', marginTop: '1rem' }}>
                         <div style={{ width: '40%', height: '100%', background: 'var(--accent-gradient)', borderRadius: '10px', animation: 'slideRight 2s infinite ease-in-out' }}></div>
+                    </div>
+                </div>
+            )}
+
+            {loading && (
+                <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', marginTop: '2rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <p style={{ color: 'var(--accent-primary)', fontWeight: '600', fontSize: '1.1rem' }}>AI is generating MCQ quiz...</p>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>We're extracting the best questions from the transcript. This takes 10-20 seconds.</p>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', background: 'var(--bg-tertiary)', borderRadius: '10px', overflow: 'hidden', marginTop: '1rem' }}>
+                        <div style={{ width: '60%', height: '100%', background: 'var(--accent-gradient)', borderRadius: '10px', animation: 'slideRight 1.5s infinite ease-in-out' }}></div>
                     </div>
                 </div>
             )}
@@ -185,6 +247,7 @@ export default function TestPage() {
                                         <input
                                             type="radio"
                                             name={`question-${qIdx}`}
+                                            className="quiz-radio"
                                             checked={selectedAnswers[qIdx] === option}
                                             onChange={() => handleOptionChange(qIdx, option)}
                                             style={{
@@ -227,39 +290,6 @@ export default function TestPage() {
                 </div>
             )}
 
-            <style jsx>{`
-        .hide-mobile {
-          @media (max-width: 640px) {
-            display: none;
-          }
-        }
-        @keyframes slideRight { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
-        input[type="radio"] {
-          appearance: none;
-          background-color: transparent;
-          margin: 0;
-          font: inherit;
-          color: currentColor;
-          width: 1.25em;
-          height: 1.25em;
-          border: 0.15em solid var(--accent-primary);
-          border-radius: 50%;
-          display: grid;
-          place-content: center;
-        }
-        input[type="radio"]::before {
-          content: "";
-          width: 0.65em;
-          height: 0.65em;
-          border-radius: 50%;
-          transform: scale(0);
-          transition: 120ms transform ease-in-out;
-          box-shadow: inset 1em 1em var(--accent-primary);
-        }
-        input[type="radio"]:checked::before {
-          transform: scale(1);
-        }
-      `}</style>
         </div>
     );
 }

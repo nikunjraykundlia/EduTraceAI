@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { promisify } = require('util');
 const execPromise = promisify(exec);
+const ffmpegPath = require('ffmpeg-static');
 
 /**
  * Extracts audio from a YouTube URL using yt-dlp
@@ -24,12 +25,15 @@ const extractAudio = async (url) => {
         const outputFileName = `${videoId}_${Date.now()}.mp3`;
         const outputPath = path.join(tempDir, outputFileName);
 
+        // Get the directory containing ffmpeg binary (yt-dlp expects the directory)
+        const ffmpegDir = path.dirname(ffmpegPath);
+
         // Command to extract audio as mp3
+        // --ffmpeg-location: path to ffmpeg binary for audio conversion
         // --no-check-certificate: bypass SSL issuer errors
-        // --js-runtimes node: resolve "No supported JavaScript runtime" warning
         // --force-ipv4: resolve "Connection refused" errors common on some networks
         // --user-agent: mimic a modern browser to avoid blocks
-        const command = `yt-dlp --no-check-certificate --js-runtimes node --force-ipv4 --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -x --audio-format mp3 -o "${outputPath}" "${url}"`;
+        const command = `yt-dlp --ffmpeg-location "${ffmpegDir}" --no-check-certificate --force-ipv4 --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" -x --audio-format mp3 -o "${outputPath}" "${url}"`;
 
         console.log(`Executing command: ${command}`);
         await execPromise(command);

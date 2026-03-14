@@ -1,16 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Video } from 'lucide-react';
+import { Video, History, Play } from 'lucide-react';
 
 export default function PersonalModeHome() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [history, setHistory] = useState([]);
+  const [mounted, setMounted] = useState(false);
   const [transcriptData, setTranscriptData] = useState(null);
+  const [audioUrl, setAudioUrl] = useState('');
   const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await api.get('/personal/history');
+      if (res.data.success) {
+        setHistory(res.data.videos);
+      }
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
+    }
+  };
 
   const isYoutubeUrl = (testUrl) => {
     return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/.test(testUrl);
@@ -32,6 +51,7 @@ export default function PersonalModeHome() {
 
       if (res.data.success) {
         setTranscriptData(res.data.transcript);
+        setAudioUrl(res.data.audioUrl || '');
         setLoading(false);
       }
     } catch (err) {
@@ -46,7 +66,8 @@ export default function PersonalModeHome() {
       // Create the video entry using the successfully generated transcript
       const res = await api.post('/personal/video', {
         youtubeUrl: url,
-        transcript: transcriptData
+        transcript: transcriptData,
+        audioUrl: audioUrl
       });
 
       if (res.data.success) {
@@ -70,7 +91,7 @@ export default function PersonalModeHome() {
         <p className="page-description">Paste any educational YouTube URL below to extract a high-fidelity transcript using our AI pipeline.</p>
       </div>
 
-      <div className="glass-card" style={{ padding: '2rem' }}>
+      <div className="glass-card" style={{ padding: '2rem', marginBottom: '3rem' }}>
         {error && <div className="badge badge-red" style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', justifyContent: 'center' }}>{error}</div>}
 
         {!transcriptData ? (
@@ -134,6 +155,56 @@ export default function PersonalModeHome() {
               <div style={{ width: '50%', height: '100%', background: 'var(--accent-gradient)', animation: 'slideRight 2s infinite ease-in-out' }}></div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* History Section */}
+      <div className="animate-fade-in" style={{ marginTop: '4rem' }}>
+        <h2 style={{ fontSize: '1.5rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '0.4rem', borderRadius: 'var(--radius-md)' }}>
+            <History size={20} />
+          </div>
+          Extraction History
+        </h2>
+
+        {mounted && history.length === 0 ? (
+          <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-secondary)' }}>No previous extractions found. Start by pasting a YouTube URL above!</p>
+          </div>
+        ) : mounted ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem' }}>
+            {history.map((video) => (
+              <div 
+                key={video._id} 
+                className="glass-card" 
+                onClick={() => router.push(`/personal/video/${video._id}`)}
+                style={{ cursor: 'pointer', overflow: 'hidden', padding: 0, transition: 'transform 0.2s', border: '1px solid var(--border-color)' }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{ position: 'relative', width: '100%', paddingBottom: '56.25%', background: '#000' }}>
+                  <img 
+                    src={video.thumbnail || `https://img.youtube.com/vi/${video.youtubeVideoId}/mqdefault.jpg`} 
+                    alt={video.title}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}
+                  />
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate( -50%, -50%)', background: 'rgba(0,0,0,0.5)', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Play size={20} color="white" fill="white" />
+                  </div>
+                </div>
+                <div style={{ padding: '1rem' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '0.4rem', lineClamp: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    {video.title}
+                  </h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Extracted on {new Date(video.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>Loading history...</div>
         )}
       </div>
 

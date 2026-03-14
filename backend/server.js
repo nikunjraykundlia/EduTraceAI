@@ -31,6 +31,7 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/coins', require('./routes/coins'));
 app.use('/api/store', require('./routes/store'));
 app.use('/api/transcription', require('./routes/transcription'));
+app.use('/api/test', require('./routes/test'));
 
 const PORT = process.env.PORT || 5000;
 

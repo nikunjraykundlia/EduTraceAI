@@ -6,6 +6,7 @@ const videoSchema = new mongoose.Schema({
   title: { type: String },
   thumbnail: { type: String },
   duration: { type: Number }, // seconds
+  audioUrl: { type: String }, // ImageKit URL for n8n processing
   transcript: {
     raw: { type: String },
     segments: [
