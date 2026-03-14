@@ -121,42 +121,71 @@ exports.generateQuiz = async (req, res) => {
       return res.status(504).json({ success: false, error: 'AI_PROCESSING_TIMEOUT', message: err.message });
     }
 
-    // 5. Extract questions (flexible parsing to match n8n response)
+    // 5. Extract questions (highly flexible parsing)
     let questions = [];
-    if (Array.isArray(n8nResponse) && n8nResponse[0] && n8nResponse[0].output && n8nResponse[0].output.mcqs) {
-      questions = n8nResponse[0].output.mcqs;
-    } else if (Array.isArray(n8nResponse)) {
-      questions = n8nResponse;
-    } else if (n8nResponse && typeof n8nResponse === 'object') {
-      questions = n8nResponse.questions || n8nResponse.data || n8nResponse.mcqs || (n8nResponse.output ? n8nResponse.output.mcqs : []) || [];
+    
+    console.log(`[Personal Quiz] Raw n8n response:`, JSON.stringify(n8nResponse).substring(0, 500));
+
+    if (typeof n8nResponse === 'string') {
+      try { n8nResponse = JSON.parse(n8nResponse); } catch(e) { /* ignore */ }
     }
 
+    const extractFromItem = (item) => {
+      if (!item) return [];
+      if (item.question || item.Question) return [item];
+      return item.mcqs || item.questions || item.items || (item.output ? (item.output.mcqs || item.output.questions || item.output) : []) || [];
+    };
+
+    if (Array.isArray(n8nResponse)) {
+      // It's an array - could be an array of questions OR an array of n8n execution items
+      // Check if first item is a question
+      if (n8nResponse.length > 0 && (n8nResponse[0].question || n8nResponse[0].Question)) {
+        questions = n8nResponse;
+      } else {
+        // Try to collect from all items
+        n8nResponse.forEach(item => {
+          const found = extractFromItem(item);
+          if (Array.isArray(found)) questions = questions.concat(found);
+          else if (found && typeof found === 'object' && found.question) questions.push(found);
+        });
+      }
+    } else if (n8nResponse && typeof n8nResponse === 'object') {
+      questions = extractFromItem(n8nResponse);
+    }
+
+    // Ensure we have an array
+    if (!Array.isArray(questions)) questions = questions ? [questions] : [];
+    
+    console.log(`[Personal Quiz] Extracted ${questions.length} questions.`);
+
     // Map questions to match Quiz schema
-    const mcqs = questions.map(q => {
+    const mcqs = questions.filter(q => q && (q.question || q.Question)).map(q => {
       // Handle options if they are an object { A: '...', B: '...' }
       let formattedOptions = [];
-      if (q.options && typeof q.options === 'object' && !Array.isArray(q.options)) {
-        // Sort keys to ensure A, B, C, D order if possible, though Object.entries usually follows insertion order
-        formattedOptions = Object.entries(q.options)
+      const opts = q.options || q.Options || q.choices || q.Choices;
+
+      if (opts && typeof opts === 'object' && !Array.isArray(opts)) {
+        formattedOptions = Object.entries(opts)
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([label, text]) => ({
             label: label.toUpperCase(),
             text: text
           }));
       } else {
-        formattedOptions = (q.options || q.Options || [q.option1, q.option2, q.option3, q.option4] || [])
+        // Fallback for array or sequence of properties
+        formattedOptions = (Array.isArray(opts) ? opts : [q.option1, q.option2, q.option3, q.option4, q.a, q.b, q.c, q.d])
           .filter(Boolean)
           .map((opt, idx) => ({
-            label: String.fromCharCode(65 + idx), // A, B, C, D
-            text: typeof opt === 'string' ? opt : (opt.text || JSON.stringify(opt))
+            label: typeof opt === 'object' && opt.label ? opt.label : String.fromCharCode(65 + idx),
+            text: typeof opt === 'object' ? opt.text : opt
           }));
       }
 
       return {
         question: q.question || q.Question || q.text,
         options: formattedOptions,
-        correctAnswer: q.correctAnswer || q.CorrectAnswer || 'A',
-        explanation: q.explanation || ''
+        correctAnswer: q.correctAnswer || q.CorrectAnswer || q.answer || 'A',
+        explanation: q.explanation || q.Explanation || ''
       };
     });
 

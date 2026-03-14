@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Trophy, ArrowLeft, Coins, Download, FileText, ImageIcon, Loader2 } from 'lucide-react';
+import { Trophy, ArrowLeft, Coins, Download, FileText } from 'lucide-react';
 import api from '@/lib/api';
 import { useCoins } from '@/context/CoinsContext';
-import html2canvas from 'html2canvas';
 
 export default function QuizResultsPage() {
   const { quizId } = useParams();
@@ -14,9 +13,7 @@ export default function QuizResultsPage() {
   const attemptId = searchParams.get('attemptId');
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
-  const [isCapturing, setIsCapturing] = useState(false);
   const { fetchCoins } = useCoins();
-  const resultsRef = useRef(null);
 
   useEffect(() => {
     if (!attemptId) {
@@ -58,41 +55,6 @@ export default function QuizResultsPage() {
     }
   };
 
-  const handleVisualDownload = async () => {
-    try {
-      setIsCapturing(true);
-      const cards = document.querySelectorAll('.question-card');
-      const images = [];
-
-      for (const card of cards) {
-        const canvas = await html2canvas(card, {
-          backgroundColor: '#0a0a0c', // Match dark theme
-          scale: 2, // Higher quality
-          logging: false,
-          useCORS: true
-        });
-        images.push(canvas.toDataURL('image/jpeg', 0.8));
-      }
-
-      const res = await api.post(`/quiz/${quizId}/visual-report/${attemptId}`, { images }, {
-        responseType: 'blob'
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Visual_Report_${quizId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
-    } catch (err) {
-      console.error('Visual report failed:', err);
-      alert('Failed to generate visual report. Please try again.');
-    } finally {
-      setIsCapturing(false);
-    }
-  };
 
   if (error) return <div style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--danger)' }}>{error}</div>;
 
@@ -105,20 +67,9 @@ export default function QuizResultsPage() {
         <Link href="/dashboard" className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
           <ArrowLeft size={16} /> Back to Dashboard
         </Link>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button 
-            onClick={handleVisualDownload} 
-            disabled={isCapturing}
-            className="btn btn-secondary" 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.85rem', border: '1px solid var(--border-color)' }}
-          >
-            {isCapturing ? <Loader2 className="animate-spin" size={16} /> : <ImageIcon size={16} />} 
-            Visual Report
-          </button>
-          <button onClick={handleDownload} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}>
-            <Download size={16} /> Standard PDF
-          </button>
-        </div>
+        <button onClick={handleDownload} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}>
+          <Download size={16} /> Download PDF
+        </button>
       </div>
 
       {/* Big Score Card */}

@@ -27,8 +27,24 @@ export default function VideoAnalysisPage() {
       try {
         const res = await api.get(`/personal/video/${videoId}`);
         if(res.data.success) {
-          setVideo(res.data.video);
+          const fetchedVideo = res.data.video;
+          setVideo(fetchedVideo);
           setQuizzes(res.data.quizzes || []);
+
+          // Auto-generate transcript if segments are missing
+          if (!fetchedVideo.transcript?.segments || fetchedVideo.transcript.segments.length === 0) {
+            setTranscriptLoading(true);
+            try {
+              const tRes = await api.post('/personal/generate-transcript', { videoId });
+              if (tRes.data.success) {
+                setVideo(prev => ({ ...prev, transcript: tRes.data.transcript }));
+              }
+            } catch (tErr) {
+              console.error('Auto-transcript failed:', tErr);
+            } finally {
+              setTranscriptLoading(false);
+            }
+          }
         }
         setLoading(false);
       } catch (err) {
