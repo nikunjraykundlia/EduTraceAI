@@ -1,5 +1,7 @@
 # 🎓 EduTrace AI - Elevating Learning with AI Precision
 
+## Deployed Link: [View Project](https://edutrace-ai.onrender.com/)
+
 ![Hero Image](./frontend/public/hero.png)
 
 > **Transforming YouTube videos into interactive learning experiences.**
