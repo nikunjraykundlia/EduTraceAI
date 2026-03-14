@@ -199,7 +199,7 @@ exports.getQuizResults = async (req, res) => {
     const detailedResults = [];
     if (attempt.mcqAnswers) {
       for (const ans of attempt.mcqAnswers) {
-        const question = quiz.mcqs.find(q => q._id.toString() === ans.questionId);
+        const question = quiz.mcqs.find(q => q._id.toString() === ans.questionId.toString());
         if (question) {
           detailedResults.push({
             questionId: question._id,
