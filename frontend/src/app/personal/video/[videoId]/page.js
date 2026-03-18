@@ -411,8 +411,6 @@ function SummaryTab({ video, loading, onGenerate }) {
                 </p>
               )}
               <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                <span><strong>Timestamp:</strong> {summary.summaryCitation.timestampRange}</span>
-                <span>•</span>
                 <span><strong>Video:</strong> {summary.summaryCitation.youtubeVideoTitle}</span>
               </div>
             </div>

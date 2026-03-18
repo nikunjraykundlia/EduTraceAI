@@ -27,8 +27,9 @@ const corsOptions = {
       'https://localhost:3001',
       'http://127.0.0.1:3000',
       'https://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      'https://127.0.0.1:3001',
       'https://edutrace-ai.onrender.com',
-      process.env.FRONTEND_URL
     ].filter(Boolean);
     
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
@@ -60,7 +61,6 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/coins', require('./routes/coins'));
 app.use('/api/store', require('./routes/store'));
 app.use('/api/transcription', require('./routes/transcription'));
-app.use('/api/test', require('./routes/test'));
 
 const PORT = process.env.PORT || 5000;
 

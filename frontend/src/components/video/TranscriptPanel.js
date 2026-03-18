@@ -57,7 +57,7 @@ export default function TranscriptPanel({ segments, onTimestampClick, activeTime
       className="glass-card" 
       style={{ height: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem', scrollBehavior: 'smooth' }}
     >
-      <div style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0 }}>Transcript</h3>
         <button 
           onClick={async (e) => {
@@ -115,12 +115,15 @@ export default function TranscriptPanel({ segments, onTimestampClick, activeTime
               display: 'flex', 
               gap: '1rem', 
               padding: '0.75rem 0.5rem', 
+              paddingTop: idx === 0 ? '0.5rem' : '0.75rem',
               borderRadius: 'var(--radius-md)',
               cursor: 'pointer',
               background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
               borderLeft: isActive ? '4px solid var(--accent-primary)' : '4px solid transparent',
               transition: 'all 0.3s ease',
-              transform: isActive ? 'translateX(5px)' : 'none'
+              transform: isActive ? 'translateX(5px)' : 'none',
+              marginLeft: isActive ? '-4px' : '0',
+              paddingLeft: isActive ? 'calc(0.5rem + 4px)' : '0.5rem'
             }}
             onMouseOver={(e) => {
                if(!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'

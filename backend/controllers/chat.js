@@ -11,21 +11,28 @@ exports.askQuestion = async (req, res) => {
     const { videoId } = req.params;
     const { question, sessionId } = req.body;
 
+    console.log(`[Chat] Request received: videoId=${videoId}, question="${question}"`);
+
     // First, find the video by youtubeVideoId or ObjectId
     let video;
     // Try to find by ObjectId first
     if (mongoose.Types.ObjectId.isValid(videoId)) {
       video = await Video.findById(videoId);
+      console.log(`[Chat] Video lookup by ObjectId: ${video ? 'found' : 'not found'}`);
     }
     
     // If not found by ObjectId, try by youtubeVideoId
     if (!video) {
       video = await Video.findOne({ youtubeVideoId: videoId });
+      console.log(`[Chat] Video lookup by youtubeVideoId: ${video ? 'found' : 'not found'}`);
     }
     
     if (!video) {
+      console.log(`[Chat] Video not found for videoId: ${videoId}`);
       return res.status(404).json({ success: false, message: 'Video not found' });
     }
+
+    console.log(`[Chat] Video found: ${video._id}, has transcript: ${!!video.transcript}`);
 
     let chatSession;
     if (sessionId) {
@@ -55,6 +62,15 @@ exports.askQuestion = async (req, res) => {
     // Call n8n to generate chat response using the new summary-doubts webhook
     let n8nResponse;
     try {
+      // Validate transcript exists before calling n8n
+      if (!video.transcript || (!video.transcript.raw && !video.transcript.segments)) {
+        console.log(`[Chat] No transcript available for video: ${video._id}`);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Video transcript not available. Please wait for transcription to complete.' 
+        });
+      }
+
       // Per user request, "doubts trigger if user clicks on 'Sends'"
       // We use the same service as summary but with mode: 'doubt'
       console.log(`[Chat] Calling n8n with videoId: ${video._id}, question: ${question}`);
@@ -68,7 +84,12 @@ exports.askQuestion = async (req, res) => {
       console.log(`[Chat] n8n response:`, JSON.stringify(n8nResponse, null, 2));
     } catch (err) {
       console.error('[ChatDoubt] n8n error:', err.message);
-      return res.status(504).json({ success: false, error: 'AI_PROCESSING_TIMEOUT', message: err.message });
+      console.error('[ChatDoubt] Full error:', err);
+      return res.status(504).json({ 
+        success: false, 
+        error: 'AI_PROCESSING_TIMEOUT', 
+        message: 'AI service is temporarily unavailable. Please try again in a few moments.' 
+      });
     }
 
     // Map the new output format back to the chat response
@@ -79,6 +100,15 @@ exports.askQuestion = async (req, res) => {
     if (data && data.output) {
       data = data.output;
       console.log(`[Chat] After output unwrapping:`, JSON.stringify(data, null, 2));
+    }
+
+    // Validate n8n response structure
+    if (!data || typeof data !== 'object') {
+      console.log(`[Chat] Invalid n8n response structure:`, data);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'AI service returned invalid response. Please try again.' 
+      });
     }
 
     const assistantData = {

@@ -246,7 +246,7 @@ export default function QuizResultsPage() {
     <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href="http://localhost:3000/personal/video/69bab96c505546681e64e169" className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+        <Link href={`${window.location.origin}/personal/video/${results.videoId}`} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
           <ArrowLeft size={16} /> Back to Video
         </Link>
         <button ref={downloadButtonRef} onClick={handleDownload} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}>
