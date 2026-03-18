@@ -36,18 +36,20 @@ EduTrace AI is a next-generation educational platform that leverages Artificial 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Framework**: [Next.js](https://nextjs.org/) (React 19)
+- **Framework**: [Next.js](https://nextjs.org/) (React 19.2.3)
 - **Styling**: Vanilla CSS & Tailwind CSS
-- **Animations**: [Framer Motion](https://www.framer.com/motion/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **Charts**: Chart.js & React-Chartjs-2
+- **Animations**: [Framer Motion](https://www.framer.com/motion/) v12.36.0
+- **Icons**: [Lucide React](https://lucide.dev/) v0.577.0
+- **Charts**: Chart.js v4.5.1 & React-Chartjs-2 v5.3.1
+- **Additional**: React Markdown, React YouTube, HTML2Canvas
 
 ### Backend
 - **Runtime**: Node.js
-- **Web Framework**: Express.js (v5)
-- **Database**: MongoDB (Mongoose)
-- **Authentication**: JWT & Bcrypt.js
-- **Media Handling**: ImageKit & PDFKit
+- **Web Framework**: Express.js (v5.2.1)
+- **Database**: MongoDB (Mongoose v9.3.0)
+- **Authentication**: JWT & Bcrypt.js v3.0.3
+- **Media Handling**: ImageKit v6.0.0 & PDFKit v0.17.2
+- **Additional**: Axios, CORS, Helmet, Morgan, FFmpeg-static, Form-data
 
 ### AI & Automation
 - **Workflow Engine**: [n8n](https://n8n.io/)
@@ -66,8 +68,8 @@ EduTrace AI is a next-generation educational platform that leverages Artificial 
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-username/EduTrace-AI.git
-   cd EduTrace-AI
+   git clone https://github.com/Hackverse2k26/edutech-we08_ai_bytes.git
+   cd edutech-we08_ai_bytes
    ```
 
 2. **Backend Setup**
@@ -131,6 +133,6 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 📬 Contact
 
-Project Link: [https://github.com/your-username/EduTrace-AI](https://github.com/your-username/EduTrace-AI)
+Project Link: [https://github.com/Hackverse2k26/edutech-we08_ai_bytes](https://github.com/Hackverse2k26/edutech-we08_ai_bytes)
 
 <p align="center">Made with ❤️ by the EduTrace AI Team</p>
