@@ -27,9 +27,6 @@ export default function Navbar() {
           <>
             <Link href="/dashboard" className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}>Dashboard</Link>
             <Link href="/store" className={`nav-link ${pathname === '/store' ? 'active' : ''}`}>Store</Link>
-            <Link href="http://localhost:3030/dashboard" className={`nav-link ${pathname === 'http://localhost:3030/dashboard' ? 'active' : ''}`} target="_blank">Interview Assessment</Link>
-
-
 
             <div className="badge badge-yellow" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <Coins size={14} />

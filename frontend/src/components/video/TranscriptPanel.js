@@ -1,7 +1,9 @@
-import { useRef, useEffect } from 'react';
-import { FileText, Loader2 } from 'lucide-react';
+import { useRef, useEffect, useState } from 'react';
+import { FileText, Loader2, Download } from 'lucide-react';
+import api from '../../lib/api';
 
-export default function TranscriptPanel({ segments, onTimestampClick, activeTime, loading, onGenerate }) {
+export default function TranscriptPanel({ segments, onTimestampClick, activeTime, loading, onGenerate, title, youtubeUrl }) {
+  const [downloading, setDownloading] = useState(false);
   const containerRef = useRef(null);
   const activeSegmentRef = useRef(null);
 
@@ -55,7 +57,51 @@ export default function TranscriptPanel({ segments, onTimestampClick, activeTime
       className="glass-card" 
       style={{ height: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem', scrollBehavior: 'smooth' }}
     >
-      <h3 style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 10 }}>Transcript</h3>
+      <div style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>Transcript</h3>
+        <button 
+          onClick={async (e) => {
+            e.stopPropagation();
+            if (downloading) return;
+            setDownloading(true);
+            try {
+              const response = await api.post('/transcription/download', {
+                title: title || 'Video Transcript',
+                segments,
+                youtubeUrl
+              }, {
+                responseType: 'blob'
+              });
+              
+              const url = window.URL.createObjectURL(new Blob([response.data]));
+              const link = document.createElement('a');
+              link.href = url;
+              link.setAttribute('download', `${(title || 'Video').replace(/[^a-z0-9\s]/gi, '_')}_YouTube_Transcript.pdf`);
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+            } catch (err) {
+              console.error('Download failed:', err);
+              alert('Failed to download transcript. Please try again.');
+            } finally {
+              setDownloading(false);
+            }
+          }}
+          disabled={downloading}
+          className="btn btn-secondary"
+          style={{ 
+            padding: '0.4rem 0.8rem', 
+            fontSize: '0.8rem', 
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem'
+          }}
+        >
+          {downloading ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}
+          {downloading ? 'Preparing...' : 'Download PDF'}
+        </button>
+      </div>
       
       {segments.map((segment, idx) => {
         const isActive = activeTime >= segment.startTime && activeTime < (segments[idx + 1]?.startTime || segment.endTime + 5);

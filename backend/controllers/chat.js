@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const ChatSession = require('../models/ChatSession');
 const Video = require('../models/Video');
 const n8nService = require('../services/n8nService');
@@ -10,8 +11,21 @@ exports.askQuestion = async (req, res) => {
     const { videoId } = req.params;
     const { question, sessionId } = req.body;
 
-    const video = await Video.findById(videoId);
-    if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
+    // First, find the video by youtubeVideoId or ObjectId
+    let video;
+    // Try to find by ObjectId first
+    if (mongoose.Types.ObjectId.isValid(videoId)) {
+      video = await Video.findById(videoId);
+    }
+    
+    // If not found by ObjectId, try by youtubeVideoId
+    if (!video) {
+      video = await Video.findOne({ youtubeVideoId: videoId });
+    }
+    
+    if (!video) {
+      return res.status(404).json({ success: false, message: 'Video not found' });
+    }
 
     let chatSession;
     if (sessionId) {
@@ -19,7 +33,7 @@ exports.askQuestion = async (req, res) => {
       if (!chatSession) return res.status(404).json({ success: false, message: 'Chat session not found' });
     } else {
       chatSession = await ChatSession.create({
-        videoId,
+        videoId: video._id, // Use the video's ObjectId
         userId: req.user.id,
         messages: []
       });
@@ -43,12 +57,15 @@ exports.askQuestion = async (req, res) => {
     try {
       // Per user request, "doubts trigger if user clicks on 'Sends'"
       // We use the same service as summary but with mode: 'doubt'
+      console.log(`[Chat] Calling n8n with videoId: ${video._id}, question: ${question}`);
       n8nResponse = await n8nService.generateSummaryAndDoubts(
         video._id.toString(),
-        video.audioUrl,
+        video.transcript,
         'doubt',
-        question
+        question,
+        video.youtubeVideoId
       );
+      console.log(`[Chat] n8n response:`, JSON.stringify(n8nResponse, null, 2));
     } catch (err) {
       console.error('[ChatDoubt] n8n error:', err.message);
       return res.status(504).json({ success: false, error: 'AI_PROCESSING_TIMEOUT', message: err.message });
@@ -57,19 +74,32 @@ exports.askQuestion = async (req, res) => {
     // Map the new output format back to the chat response
     // format: { doubts: "...", citation: { evidence: "..." } }
     let data = Array.isArray(n8nResponse) ? n8nResponse[0] : n8nResponse;
+    console.log(`[Chat] After array processing:`, JSON.stringify(data, null, 2));
+    
     if (data && data.output) {
       data = data.output;
+      console.log(`[Chat] After output unwrapping:`, JSON.stringify(data, null, 2));
     }
 
     const assistantData = {
       shortAnswer: 'Doubt Resolved',
       mainAnswer: data.doubts || 'I could not find a specific answer in the transcript.',
-      evidence: data.citation ? [{
-        transcriptExcerpt: data.citation.evidence || '',
-        timestamp: { startTime: 0 } // Default since user payload is simplified
+      evidence: data.doubtsCitation ? [{
+        transcriptExcerpt: data.doubtsCitation.evidence || '',
+        timestamp: { 
+          startTime: data.doubtsCitation.timestampRange ? 
+            convertTimestampToSeconds(data.doubtsCitation.timestampRange.split(',')[0].split('-')[0].trim()) : 0
+        }
       }] : [],
       confidenceLevel: 'high'
     };
+
+    // Helper function to convert timestamp to seconds
+    function convertTimestampToSeconds(timestamp) {
+      if (!timestamp) return 0;
+      const parts = timestamp.split(':');
+      return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+    }
 
     const assistantMessage = {
       role: 'assistant',
@@ -77,21 +107,25 @@ exports.askQuestion = async (req, res) => {
       mainAnswer: assistantData.mainAnswer,
       evidence: assistantData.evidence,
       confidenceLevel: assistantData.confidenceLevel,
+      timestampRange: data.doubtsCitation?.timestampRange,
+      youtubeVideoTitle: data.doubtsCitation?.youtubeVideoTitle,
       timestamp: new Date()
     };
+
+    console.log(`[Chat] Final assistant message:`, JSON.stringify(assistantMessage, null, 2));
 
     chatSession.messages.push(assistantMessage);
     await chatSession.save();
 
     // Also update the video's cached doubts if needed
     video.summary.doubts = assistantData.mainAnswer;
-    video.summary.doubtsCitation = data.citation;
+    video.summary.doubtsCitation = data.doubtsCitation;
     await video.save();
 
     res.status(200).json({
       success: true,
       sessionId: chatSession._id,
-      response: assistantData
+      response: assistantMessage
     });
 
   } catch (error) {
@@ -105,10 +139,32 @@ exports.askQuestion = async (req, res) => {
 exports.getChatHistory = async (req, res) => {
   try {
     const { videoId } = req.params;
-    const sessions = await ChatSession.find({ videoId, userId: req.user.id }).sort({ updatedAt: -1 });
+    
+    // First, find the video by youtubeVideoId or ObjectId
+    let video;
+    // Try to find by ObjectId first
+    if (mongoose.Types.ObjectId.isValid(videoId)) {
+      video = await Video.findById(videoId);
+    }
+    
+    // If not found by ObjectId, try by youtubeVideoId
+    if (!video) {
+      video = await Video.findOne({ youtubeVideoId: videoId });
+    }
+    
+    if (!video) {
+      return res.status(404).json({ success: false, message: 'Video not found' });
+    }
+    
+    // Now find chat sessions using the video's ObjectId
+    const sessions = await ChatSession.find({ 
+      videoId: video._id, 
+      userId: req.user.id 
+    }).sort({ updatedAt: -1 });
 
     res.status(200).json({ success: true, sessions });
   } catch (error) {
+    console.error('Error in getChatHistory:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

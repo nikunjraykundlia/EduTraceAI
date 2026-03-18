@@ -3,6 +3,7 @@ const path = require('path');
 const { extractAudio, cleanupFile } = require('../services/audioExtractionService');
 const { uploadToImageKit } = require('../services/imagekitService');
 const { triggerQuizWebhook } = require('../services/n8nQuizService');
+const { extractVideoId } = require('../services/transcriptService');
 
 /**
  * @desc    Generate quiz from a YouTube URL
@@ -22,6 +23,9 @@ exports.generateQuiz = async (req, res) => {
         // Generate a unique session ID for this quiz request
         const sessionId = crypto.randomUUID();
         let imagekitUrl = audioUrl;
+        
+        // Extract videoId from YouTube URL for n8n workflow
+        const videoId = youtubeUrl ? extractVideoId(youtubeUrl) : null;
 
         // Only extract and upload if audioUrl wasn't provided
         if (!imagekitUrl) {
@@ -58,12 +62,12 @@ exports.generateQuiz = async (req, res) => {
             console.log(`[Quiz] Reusing existing audio URL: ${imagekitUrl}`);
         }
 
-        // 4. Trigger the quiz-generation webhook with session_id + imagekit_url
-        console.log(`[Quiz] Step 3: Triggering quiz webhook — session: ${sessionId}, url: ${imagekitUrl}`);
+        // 4. Trigger quiz-generation webhook with session_id and videoId
+        console.log(`[Quiz] Step 3: Triggering quiz webhook — session: ${sessionId}, videoId: ${videoId}`);
 
         let webhookResponse;
         try {
-            webhookResponse = await triggerQuizWebhook(sessionId, imagekitUrl);
+            webhookResponse = await triggerQuizWebhook(sessionId, videoId);
         } catch (err) {
             return res.status(502).json({
                 success: false,

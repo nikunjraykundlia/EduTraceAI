@@ -1,14 +1,12 @@
-const { extractAudio, cleanupFile } = require('../services/audioExtractionService');
-const { uploadToImageKit } = require('../services/imagekitService');
-const { sendAudioUrlToN8n } = require('../services/n8nTranscriptionService');
-const path = require('path');
+const { fetchTranscript } = require('../services/transcriptService');
+const { sendTranscriptToN8n } = require('../services/n8nTranscriptionService');
+const PDFDocument = require('pdfkit');
 
 /**
  * Handles YouTube URL submission for advanced transcription
- * (yt-dlp -> audio -> ImageKit -> n8n -> transcript)
+ * Uses SerpAPI to fetch transcript and sends to n8n webhook
  */
 exports.generateAdvancedTranscript = async (req, res) => {
-    let localAudioPath = null;
     try {
         const { youtubeUrl } = req.body;
 
@@ -16,66 +14,151 @@ exports.generateAdvancedTranscript = async (req, res) => {
             return res.status(400).json({ success: false, message: 'YouTube URL is required' });
         }
 
-        // 1. Extract audio from YouTube using yt-dlp
-        console.log(`Step 1: Extracting audio from ${youtubeUrl}`);
+        // 1. Fetch transcript directly using SerpAPI
+        console.log(`Step 1: Fetching transcript from SerpAPI for ${youtubeUrl}`);
+        let transcriptData;
         try {
-            localAudioPath = await extractAudio(youtubeUrl);
+            transcriptData = await fetchTranscript(youtubeUrl);
         } catch (err) {
             return res.status(500).json({
                 success: false,
-                error: 'AUDIO_EXTRACTION_FAILED',
+                error: 'TRANSCRIPT_FETCH_FAILED',
                 message: err.message
             });
         }
 
-        // 2. Upload the extracted MP3 to ImageKit
-        console.log(`Step 2: Uploading ${path.basename(localAudioPath)} to ImageKit`);
-        let imageKitResponse;
-        try {
-            imageKitResponse = await uploadToImageKit(localAudioPath, path.basename(localAudioPath));
-        } catch (err) {
-            return res.status(502).json({
-                success: false,
-                error: 'IMAGEKIT_UPLOAD_FAILED',
-                message: err.message
-            });
-        }
-
-        // 3. Send the public ImageKit URL to n8n for transcription
-        console.log(`Step 3: Sending URL ${imageKitResponse.url} to n8n`);
+        // 2. Send transcript to n8n webhook
+        console.log(`Step 2: Sending transcript to n8n webhook`);
         let n8nResponse;
         try {
-            n8nResponse = await sendAudioUrlToN8n(imageKitResponse.url, youtubeUrl);
+            n8nResponse = await sendTranscriptToN8n(transcriptData, youtubeUrl);
         } catch (err) {
-            return res.status(502).json({
-                success: false,
-                error: 'N8N_COMMUNICATION_FAILED',
-                message: err.message
-            });
+            console.error('n8n webhook error:', err.message);
+            // Don't fail if n8n fails - we still have the transcript
+            n8nResponse = null;
         }
 
-        // 4. Clean up the local temporary file
-        cleanupFile(localAudioPath);
-        localAudioPath = null;
-
-        // 5. Return the transcript to the client
-        const transcript = Array.isArray(n8nResponse) ? n8nResponse[0] : n8nResponse;
-        
+        // 3. Return the transcript to the client
         res.status(200).json({
             success: true,
-            transcript: transcript,
-            audioUrl: imageKitResponse.url,
-            message: 'Advanced transcription via ImageKit pipeline completed successfully'
+            transcript: {
+                raw: transcriptData.raw,
+                segments: transcriptData.segments
+            },
+            n8nResponse: n8nResponse,
+            message: 'Transcript fetched successfully via SerpAPI'
         });
 
     } catch (error) {
         console.error(`Unexpected error in generateAdvancedTranscript: ${error.message}`);
-        // Ensure cleanup even on unexpected errors
-        if (localAudioPath) cleanupFile(localAudioPath);
-
         res.status(500).json({
             success: false,
-            message: 'Internal server error during transcription pipeline'
+            message: 'Internal server error during transcription'
         });
+    }
+};
+
+/**
+ * Generates and downloads a PDF of the transcript
+ * Expects { title, segments, youtubeUrl } in body
+ */
+exports.downloadTranscriptPDF = async (req, res) => {
+    try {
+        const { title, segments, youtubeUrl } = req.body;
+
+        if (!segments || !Array.isArray(segments)) {
+            return res.status(400).json({ success: false, message: 'Transcript segments are required' });
+        }
+
+        const doc = new PDFDocument({ margin: 50 });
+        // Sanitize filename - format: Title_YouTube_Transcript.pdf
+        const filename = `${(title || 'Video').replace(/[^a-z0-9\s]/gi, '_')}_YouTube_Transcript.pdf`;
+
+        res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-type', 'application/pdf');
+
+        doc.pipe(res);
+
+        // Header
+        doc.fontSize(20).font('Helvetica-Bold').fillColor('#6366f1').text('EduTrace AI - Transcript', { align: 'center' });
+        doc.moveDown();
+
+        doc.fontSize(14).font('Helvetica-Bold').text(title || 'Video Title Not Available');
+        if (youtubeUrl) {
+            doc.fontSize(10).font('Helvetica').fillColor('#6366f1').text(youtubeUrl, { link: youtubeUrl });
+            doc.fillColor('#000000');
+        }
+        
+        doc.moveDown();
+        doc.strokeColor('#e5e7eb').lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.moveDown();
+
+        const formatTime = (seconds) => {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        };
+
+        // Transcript Content
+        segments.forEach((segment, index) => {
+            // Check if this is the last segment and we need to add footer
+            const isLastSegment = index === segments.length - 1;
+            
+            // If last segment and we're too close to bottom, add footer now before it gets added
+            if (isLastSegment && doc.y > 640) {
+                doc.fontSize(8).fillColor('#9ca3af').text(
+                    `Generated by EduTrace AI on ${new Date().toLocaleDateString()}`,
+                    50,
+                    doc.page.height - 50,
+                    { align: 'center' }
+                );
+                // Add a new page for the last segment if needed
+                if (doc.y > 700) {
+                    doc.addPage();
+                    // Add header on new page
+                    doc.fontSize(8).fillColor('#9ca3af').text(
+                        `${title || 'Transcript'} - Generated by EduTrace AI`,
+                        50,
+                        30,
+                        { align: 'center' }
+                    );
+                    doc.moveDown(2);
+                }
+            }
+            
+            // Check if we need a new page for content
+            if (doc.y > 700) {
+                doc.addPage();
+                // Add header on new page
+                doc.fontSize(8).fillColor('#9ca3af').text(
+                    `${title || 'Transcript'} - Generated by EduTrace AI`,
+                    50,
+                    30,
+                    { align: 'center' }
+                );
+                doc.moveDown(2);
+            }
+
+            doc.fontSize(10).font('Helvetica-Bold').fillColor('#6366f1').text(`[${formatTime(segment.startTime || 0)}] `, { continued: true });
+            doc.font('Helvetica').fillColor('#374151').text(segment.text || '');
+            doc.moveDown(0.5);
+        });
+
+        // Add footer only if not already added
+        if (doc.y <= 640) {
+            doc.fontSize(8).fillColor('#9ca3af').text(
+                `Generated by EduTrace AI on ${new Date().toLocaleDateString()}`,
+                50,
+                doc.page.height - 50,
+                { align: 'center' }
+            );
+        }
+
+        doc.end();
+    } catch (error) {
+        console.error('[Transcript PDF Gen] CRITICAL ERROR:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, message: error.message, stack: error.stack });
+        }
     }
 };

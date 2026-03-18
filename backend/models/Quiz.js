@@ -23,6 +23,9 @@ const quizSchema = new mongoose.Schema({
         endTime: Number,
         transcriptExcerpt: String
       },
+      exacttimestamp: String,
+      youtubevideotitle: String,
+      confidence: String,
       difficulty: String,
       topic: String
     }

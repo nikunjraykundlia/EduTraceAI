@@ -3,17 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Video, History, Play } from 'lucide-react';
+import { Video, History, Play, Trash2 } from 'lucide-react';
 import TranscriptPanel from '@/components/video/TranscriptPanel';
 
 export default function PersonalModeHome() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [history, setHistory] = useState([]);
   const [mounted, setMounted] = useState(false);
   const [transcriptData, setTranscriptData] = useState(null);
   const [audioUrl, setAudioUrl] = useState('');
+  const [videoTitle, setVideoTitle] = useState('');
+  const [videoId, setVideoId] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -39,44 +40,50 @@ export default function PersonalModeHome() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isYoutubeUrl(url)) {
-      setError('Please enter a valid YouTube URL');
       return;
     }
-    setError('');
     setLoading(true);
     setTranscriptData(null);
+    setVideoTitle('');
+    setVideoId(null);
 
     try {
-      // Trigger the advanced transcription pipeline (yt-dlp -> ImageKit -> n8n)
-      const res = await api.post('/transcription/advanced', { youtubeUrl: url });
+      // Use the fast submission endpoint which uses youtube-transcript-plus
+      // This also triggers the advanced audio-pipeline in the background
+      const res = await api.post('/personal/video', { youtubeUrl: url });
 
       if (res.data.success) {
-        setTranscriptData(res.data.transcript);
-        setAudioUrl(res.data.audioUrl || '');
+        const video = res.data.video;
+        setTranscriptData(video.transcript);
+        setAudioUrl(video.audioUrl || '');
+        setVideoTitle(video.title || 'YouTube Video');
+        setUrl(video.youtubeUrl);
+        setVideoId(video._id);
         setLoading(false);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'High-fidelity transcription failed. Please check the URL or try again later.');
+      console.error('Transcript extraction error (silenced):', err);
       setLoading(false);
     }
   };
 
   const handleProceed = async () => {
-    setLoading(true);
-    try {
-      // Create the video entry using the successfully generated transcript
-      const res = await api.post('/personal/video', {
-        youtubeUrl: url,
-        transcript: transcriptData,
-        audioUrl: audioUrl
-      });
+    if (videoId) {
+      router.push(`/personal/video/${videoId}`);
+    }
+  };
 
-      if (res.data.success) {
-        router.push(`/personal/video/${res.data.video._id}`);
-      }
+  const handleDeleteVideo = async (e, videoId) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this video? All associated quizzes and data will be permanently deleted.')) {
+      return;
+    }
+    try {
+      await api.delete(`/personal/video/${videoId}`);
+      setHistory(history.filter(v => v._id !== videoId));
     } catch (err) {
-      setError('Failed to save video to your library.');
-      setLoading(false);
+      console.error('Failed to delete video:', err);
+      alert('Failed to delete video. Please try again.');
     }
   };
 
@@ -84,16 +91,21 @@ export default function PersonalModeHome() {
   const getTranscriptSegments = () => {
     if (!transcriptData) return [];
     
-    // If we already have segments (from basic fetch or already parsed)
-    if (transcriptData.segments && transcriptData.segments.length > 0) return transcriptData.segments;
+    // 1. If we have segments array directly (standard format from backend)
+    if (transcriptData.segments && Array.isArray(transcriptData.segments) && transcriptData.segments.length > 0) {
+      return transcriptData.segments;
+    }
     
-    // Try to parse timestampedTranscript if it's a string from n8n
-    const rawText = typeof transcriptData === 'string' ? transcriptData : (transcriptData.timestampedTranscript || transcriptData.raw || "");
+    // 2. If transcriptData itself is an array of segments
+    if (Array.isArray(transcriptData) && transcriptData.length > 0) {
+      return transcriptData;
+    }
     
+    // 3. Try to parse from raw text if segments are missing
+    const rawText = transcriptData.raw || transcriptData.timestampedTranscript || (typeof transcriptData === 'string' ? transcriptData : "");
     if (!rawText) return [{ startTime: 0, text: "No transcript content available." }];
 
-    // Regex to match [MM:SS] or [HH:MM:SS] or simply seconds
-    const timestampRegex = /\[(\d{1,2}:)?\d{1,2}:\d{2}\]|(\d+\.\d+)/g;
+    // Simple parsing for timestamped text like [MM:SS] Text
     const lines = rawText.split('\n');
     const parsedSegments = [];
 
@@ -103,7 +115,6 @@ export default function PersonalModeHome() {
         const timeStr = match[1];
         const text = line.replace(match[0], '').trim();
         
-        // Convert timeStr (MM:SS or HH:MM:SS) to seconds
         const parts = timeStr.split(':').map(Number);
         let seconds = 0;
         if (parts.length === 3) {
@@ -114,7 +125,6 @@ export default function PersonalModeHome() {
         
         parsedSegments.push({ startTime: seconds, text });
       } else if (line.trim()) {
-        // Line without timestamp, attach to last or start at 0
         if (parsedSegments.length > 0) {
           parsedSegments[parsedSegments.length - 1].text += ' ' + line.trim();
         } else {
@@ -123,10 +133,7 @@ export default function PersonalModeHome() {
       }
     });
 
-    if (parsedSegments.length > 0) return parsedSegments;
-    
-    // Fallback: single segment
-    return [{ startTime: 0, text: rawText }];
+    return parsedSegments.length > 0 ? parsedSegments : [{ startTime: 0, text: rawText }];
   };
 
   return (
@@ -142,7 +149,6 @@ export default function PersonalModeHome() {
       </div>
 
       <div className="glass-card" style={{ padding: '2rem', marginBottom: '3rem' }}>
-        {error && <div className="badge badge-red" style={{ width: '100%', padding: '0.75rem', marginBottom: '1.5rem', justifyContent: 'center' }}>{error}</div>}
 
         {!transcriptData ? (
           <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
@@ -173,8 +179,10 @@ export default function PersonalModeHome() {
               <TranscriptPanel 
                 segments={getTranscriptSegments()} 
                 activeTime={0}
-                onTimestampClick={() => {}} // No behavior needed in preview
+                onTimestampClick={() => {}}
                 loading={false}
+                youtubeUrl={url}
+                title={videoTitle || 'Video Transcript'}
               />
             </div>
 
@@ -236,13 +244,43 @@ export default function PersonalModeHome() {
                     <Play size={20} color="white" fill="white" />
                   </div>
                 </div>
-                <div style={{ padding: '1rem' }}>
+                <div style={{ padding: '1rem', position: 'relative', minHeight: '80px' }}>
                   <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '0.4rem', lineClamp: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {video.title}
                   </h3>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     Extracted on {new Date(video.createdAt).toLocaleDateString()}
                   </p>
+                  <button
+                    onClick={(e) => handleDeleteVideo(e, video._id)}
+                    style={{
+                      position: 'absolute',
+                      bottom: '10px',
+                      right: '10px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      color: 'var(--danger)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                      e.currentTarget.style.transform = 'scale(1.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    title="Delete video"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             ))}

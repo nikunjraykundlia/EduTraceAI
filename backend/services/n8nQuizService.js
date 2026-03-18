@@ -3,20 +3,20 @@ const axios = require('axios');
 const QUIZ_WEBHOOK_URL = process.env.N8N_QUIZ_WEBHOOK_URL || 'https://nikunjn8n.up.railway.app/webhook/get-quiz-queries';
 
 /**
- * Triggers the quiz-generation webhook with session_id and imagekit_url.
- * n8n fetches the audio/transcript, processes it, and returns MCQ questions.
+ * Triggers quiz-generation webhook with session_id and videoId.
+ * n8n queries MongoDB to get transcript data and generates MCQ questions.
  *
  * @param {string} sessionId  - Unique session identifier
- * @param {string} imagekitUrl - Public ImageKit URL of the extracted audio file
+ * @param {string} videoId    - YouTube video ID to query transcript from MongoDB
  * @returns {Promise<Object>} - { session_id, questions: [...] }
  */
-const triggerQuizWebhook = async (sessionId, imagekitUrl) => {
+const triggerQuizWebhook = async (sessionId, videoId) => {
     try {
-        console.log(`Triggering quiz webhook at: ${QUIZ_WEBHOOK_URL}`);
+        console.log(`Triggering quiz webhook at: ${QUIZ_WEBHOOK_URL} for videoId: ${videoId}`);
 
         const response = await axios.post(QUIZ_WEBHOOK_URL, {
             session_id: sessionId,
-            imagekit_url: imagekitUrl
+            videoId: videoId
         }, {
             headers: { 'Content-Type': 'application/json' },
             timeout: 300000 // 5 minutes — quiz generation can be slow

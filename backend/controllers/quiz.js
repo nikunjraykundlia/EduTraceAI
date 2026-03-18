@@ -97,25 +97,35 @@ exports.submitQuizAttempt = async (req, res) => {
 
     const answersList = Array.isArray(mcqAnswers) ? mcqAnswers : [];
 
-    // Calculate MCQ score
-    for (const ans of answersList) {
-      if (!ans.questionId) continue;
-      const question = quiz.mcqs.find(q => q._id && q._id.toString() === ans.questionId);
-      if (question) {
-        const isCorrect = question.correctAnswer === ans.selectedAnswer;
+    // Calculate MCQ score - include unanswered questions
+    for (const question of quiz.mcqs) {
+      const answer = answersList.find(ans => ans.questionId && question._id && ans.questionId === question._id.toString());
+      
+      let selectedAnswer = null;
+      let isCorrect = false;
+      
+      if (answer && answer.selectedAnswer) {
+        selectedAnswer = answer.selectedAnswer;
+        isCorrect = question.correctAnswer === selectedAnswer;
         if (isCorrect) correctCount++;
         else incorrectCount++;
-
-        detailedResults.push({
-          questionId: question._id,
-          question: question.question,
-          selectedAnswer: ans.selectedAnswer,
-          correctAnswer: question.correctAnswer,
-          isCorrect,
-          explanation: question.explanation,
-          sourceTimestamp: question.sourceTimestamp
-        });
+      } else {
+        // Unanswered question - mark as incorrect
+        incorrectCount++;
       }
+
+      detailedResults.push({
+        questionId: question._id,
+        question: question.question,
+        selectedAnswer: selectedAnswer || 'No option selected',
+        correctAnswer: question.correctAnswer,
+        isCorrect,
+        explanation: question.explanation,
+        sourceTimestamp: question.sourceTimestamp,
+        exacttimestamp: question.exacttimestamp || '',
+        youtubevideotitle: question.youtubevideotitle || '',
+        confidence: question.confidence || 'Medium'
+      });
     }
 
     // Reward user
@@ -196,22 +206,39 @@ exports.getQuizResults = async (req, res) => {
     const quiz = await Quiz.findById(attempt.quizId).lean();
     if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
 
+    // Get video information
+    const Video = require('../models/Video');
+    const video = await Video.findById(quiz.videoId).lean();
+
     const detailedResults = [];
-    if (attempt.mcqAnswers) {
-      for (const ans of attempt.mcqAnswers) {
-        const question = quiz.mcqs.find(q => q._id.toString() === ans.questionId.toString());
-        if (question) {
-          detailedResults.push({
-            questionId: question._id,
-            question: question.question,
-            selectedAnswer: ans.selectedAnswer,
-            correctAnswer: question.correctAnswer,
-            isCorrect: question.correctAnswer === ans.selectedAnswer,
-            explanation: question.explanation,
-            sourceTimestamp: question.sourceTimestamp
-          });
-        }
+    // Process all questions, including unanswered ones
+    for (const question of quiz.mcqs) {
+      const answer = attempt.mcqAnswers?.find(ans => ans.questionId && question._id && ans.questionId.toString() === question._id.toString());
+      
+      let selectedAnswer = null;
+      let isCorrect = false;
+      
+      if (answer && answer.selectedAnswer) {
+        selectedAnswer = answer.selectedAnswer;
+        isCorrect = question.correctAnswer === selectedAnswer;
+      } else {
+        // Unanswered question
+        selectedAnswer = 'No option selected';
+        isCorrect = false;
       }
+
+      detailedResults.push({
+        questionId: question._id,
+        question: question.question,
+        selectedAnswer: selectedAnswer,
+        correctAnswer: question.correctAnswer,
+        isCorrect,
+        explanation: question.explanation,
+        sourceTimestamp: question.sourceTimestamp,
+        exacttimestamp: question.exacttimestamp || '',
+        youtubevideotitle: question.youtubevideotitle || '',
+        confidence: question.confidence || 'Medium'
+      });
     }
 
     res.status(200).json({ 
@@ -222,7 +249,10 @@ exports.getQuizResults = async (req, res) => {
         coinsEarned: attempt.coinsEarned,
         correctAnswers: detailedResults.filter(r => r.isCorrect).length,
         incorrectAnswers: detailedResults.filter(r => !r.isCorrect).length,
-        detailedResults
+        detailedResults,
+        videoId: video?._id,
+        youtubeVideoId: video?.youtubeVideoId,
+        youtubeUrl: video?.youtubeUrl
       } 
     });
   } catch (error) {
@@ -315,50 +345,73 @@ exports.downloadQuizPDF = async (req, res) => {
 exports.generateQuizImagePDF = async (req, res) => {
   try {
     const { attemptId } = req.params;
-    const { images } = req.body; // Array of base64 images
+    const { images, continuous = false, videoTitle } = req.body; // Array of base64 images
 
-    if (!images || !Array.isArray(images)) {
+    if (!images || !Array.isArray(images) || images.length === 0) {
       return res.status(400).json({ success: false, message: 'No images provided' });
     }
 
-    const attempt = await QuizAttempt.findById(attemptId).populate('quizId');
-    if (!attempt) return res.status(404).json({ success: false, message: 'Attempt not found' });
-
-    const quiz = attempt.quizId;
-    const user = await User.findById(attempt.studentId);
-
-    const doc = new PDFDocument({ margin: 50 });
-    const filename = `Visual_Report_${attemptId}.pdf`;
+    const doc = new PDFDocument({ margin: 0 });
+    // Dynamic filename with YouTube video title
+    const cleanTitle = videoTitle ? videoTitle.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_') : 'Assessment';
+    const filename = `${cleanTitle}_Assessment_Complete.pdf`;
 
     res.setHeader('Content-disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-type', 'application/pdf');
 
     doc.pipe(res);
 
-    // Title Page
-    doc.fontSize(24).font('Helvetica-Bold').text('Visual Assessment Report', { align: 'center' });
-    doc.moveDown();
-    
-    doc.fontSize(12).font('Helvetica');
-    doc.text(`Student: ${user.name}`);
-    doc.text(`Email: ${user.email}`);
-    doc.text(`Quiz: ${quiz.title}`);
-    doc.text(`Score: ${attempt.totalScore}%`);
-    doc.text(`Date: ${new Date(attempt.completedAt).toLocaleString()}`);
-    doc.moveDown(2);
-
-    // Embed Images
-    for (const base64Data of images) {
-      const imgBuffer = Buffer.from(base64Data.split(',')[1], 'base64');
+    if (continuous) {
+      // Place images continuously with page breaks but no gaps
+      let currentY = 0;
       
-      // Page break if not enough space (keeping it simple: one image per page or fit)
-      // For now, let's do one per page if they are large, or fit multiple
-      doc.addPage();
-      doc.image(imgBuffer, {
-        fit: [500, 700],
-        align: 'center',
-        valign: 'center'
-      });
+      for (const base64Data of images) {
+        const imgBuffer = Buffer.from(base64Data.split(',')[1], 'base64');
+        
+        // Calculate image dimensions to fit page width
+        const pageWidth = doc.page.width;
+        const img = doc.openImage(imgBuffer);
+        
+        // Calculate height to maintain aspect ratio
+        const imgHeight = (img.height / img.width) * pageWidth;
+        
+        // Skip if image has no height
+        if (imgHeight <= 0) {
+          console.log('Skipping image with zero height');
+          continue;
+        }
+        
+        // If image doesn't fit on current page, start a new page
+        if (currentY > 0 && currentY + imgHeight > doc.page.height) {
+          doc.addPage();
+          currentY = 0;
+        }
+        
+        // Add image at current position (no gap)
+        doc.image(imgBuffer, 0, currentY, {
+          fit: [pageWidth, imgHeight],
+          align: 'left',
+          valign: 'top'
+        });
+        
+        // Update current position for next image (no gap between images)
+        currentY += imgHeight;
+      }
+    } else {
+      // Original behavior - one image per page
+      for (const base64Data of images) {
+        const imgBuffer = Buffer.from(base64Data.split(',')[1], 'base64');
+        
+        doc.image(imgBuffer, {
+          fit: [doc.page.width, doc.page.height],
+          align: 'center',
+          valign: 'top'
+        });
+        
+        if (images.indexOf(base64Data) < images.length - 1) {
+          doc.addPage();
+        }
+      }
     }
 
     doc.end();

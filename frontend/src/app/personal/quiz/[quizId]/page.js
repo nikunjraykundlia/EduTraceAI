@@ -7,6 +7,18 @@ import { Clock, CheckCircle, AlertTriangle } from 'lucide-react';
 
 const QUIZ_TIME_LIMIT = 60; // seconds
 
+const extractStartTime = (timestamp) => {
+  if (!timestamp) return '';
+  
+  // Handle range format "MM:SS-MM:SS" or "H:MM:SS-H:MM:SS"
+  if (timestamp.includes('-')) {
+    return timestamp.split('-')[0].trim();
+  }
+  
+  // Handle single timestamp format
+  return timestamp;
+};
+
 export default function QuizTakingPage() {
   const { quizId } = useParams();
   const router = useRouter();
@@ -145,9 +157,9 @@ export default function QuizTakingPage() {
       <div className="glass-card" style={{ padding: '2.5rem 2rem', marginBottom: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
            <h2 style={{ fontSize: '1.25rem', lineHeight: 1.5 }}>{currentQ.question}</h2>
-           {currentQ.sourceTimestamp && (
+           {currentQ.exacttimestamp && (
              <div className="badge badge-blue" style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} title="Play video at this embedded timestamp">
-                📎 Source {Math.floor(currentQ.sourceTimestamp.startTime / 60)}:{(currentQ.sourceTimestamp.startTime % 60).toString().padStart(2, '0')}
+                📎 Source {extractStartTime(currentQ.exacttimestamp)}
              </div>
            )}
         </div>

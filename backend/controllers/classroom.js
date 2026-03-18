@@ -4,6 +4,7 @@ const Quiz = require('../models/Quiz');
 const User = require('../models/User');
 const generateClassCode = require('../utils/classCodeGenerator');
 const { fetchTranscript } = require('../services/transcriptService');
+const { sendTranscriptToN8nAsync } = require('../services/n8nTranscriptionService');
 const n8nService = require('../services/n8nService');
 
 // @desc    Create a new classroom
@@ -112,6 +113,10 @@ exports.addVideoToClassroom = async (req, res) => {
     const classroomId = req.params.classroomId;
 
     let transcriptData = await fetchTranscript(youtubeUrl);
+
+    // Send transcript to n8n webhook for processing (fire-and-forget, don't wait)
+    console.log(`[Classroom] Sending transcript to n8n for video: ${transcriptData.videoId}`);
+    sendTranscriptToN8nAsync(transcriptData, youtubeUrl);
 
     const video = await Video.create({
       youtubeUrl,

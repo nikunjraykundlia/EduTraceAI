@@ -1,4 +1,4 @@
-const { YouTubeTranscriptApi } = require('yt-transcript-api');
+const axios = require('axios');
 
 /**
  * Extracts video ID from a YouTube URL
@@ -7,6 +7,7 @@ const { YouTubeTranscriptApi } = require('yt-transcript-api');
  */
 const extractVideoId = (url) => {
   try {
+    if (!url) return null;
     const patterns = [
       /(?:youtube\.com\/watch\?v=)([^&\s]+)/,
       /(?:youtu\.be\/)([^?\s]+)/,
@@ -46,40 +47,116 @@ const fetchTranscript = async (url) => {
       throw new Error(`Invalid YouTube URL: ${url}`);
     }
 
-    console.log(`[TranscriptService] Fetching transcript for videoId: ${videoId}`);
-    // Using getTranscript instead of fetch which is undefined
-    const transcriptList = await YouTubeTranscriptApi.getTranscript(videoId);
+    console.log(`[TranscriptService] Fetching transcript for videoId: ${videoId} using SerpAPI`);
     
-    if (!transcriptList || transcriptList.length === 0) {
+    const serpApiKey = process.env.SERPAPI_KEY;
+    if (!serpApiKey) {
+      throw new Error('SERPAPI_KEY not configured in environment variables');
+    }
+
+    // Call SerpAPI for YouTube transcript
+    const serpUrl = 'https://serpapi.com/search.json';
+    
+    // Fetch both transcript and video details
+    const [transcriptResponse, videoResponse] = await Promise.all([
+      axios.get(serpUrl, {
+        params: {
+          engine: 'youtube_video_transcript',
+          v: videoId,
+          api_key: serpApiKey
+        },
+        timeout: 30000
+      }),
+      axios.get(serpUrl, {
+        params: {
+          engine: 'youtube',
+          v: videoId,
+          api_key: serpApiKey
+        },
+        timeout: 30000
+      }).catch(() => ({ data: null })) // Ignore video details error
+    ]);
+
+    // Extract video title if available from SerpAPI
+    let videoTitle = null;
+    if (videoResponse.data) {
+      const videoData = videoResponse.data;
+      console.log('[TranscriptService] Video response keys:', Object.keys(videoData));
+      
+      // Try multiple possible locations for title
+      if (videoData.video_results && videoData.video_results[0] && videoData.video_results[0].title) {
+        videoTitle = videoData.video_results[0].title;
+      } else if (videoData.title) {
+        videoTitle = videoData.title;
+      } else if (videoData.videos && videoData.videos[0] && videoData.videos[0].title) {
+        videoTitle = videoData.videos[0].title;
+      }
+      
+      console.log('[TranscriptService] Extracted title from SerpAPI:', videoTitle);
+    }
+
+    // Fallback: Use YouTube oEmbed API for title
+    if (!videoTitle) {
+      try {
+        const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`;
+        const oembedResponse = await axios.get(oembedUrl, { timeout: 5000 });
+        if (oembedResponse.data && oembedResponse.data.title) {
+          videoTitle = oembedResponse.data.title;
+          console.log('[TranscriptService] Extracted title from oEmbed:', videoTitle);
+        }
+      } catch (err) {
+        console.log('[TranscriptService] oEmbed fetch failed:', err.message);
+      }
+    }
+
+    const response = transcriptResponse;
+
+    if (!response.data || !response.data.transcript) {
+      throw new Error('No transcript available for this video');
+    }
+
+    const transcriptList = response.data.transcript;
+    
+    if (!Array.isArray(transcriptList) || transcriptList.length === 0) {
       throw new Error('Transcript returned empty.');
     }
 
-    console.log(`[TranscriptService] Got ${transcriptList.length} segments. Sample:`, JSON.stringify(transcriptList[0]));
+    console.log(`[TranscriptService] Got ${transcriptList.length} segments from SerpAPI.`);
 
     let rawText = '';
     const segments = transcriptList.map(item => {
-      const text = (item.text || '')
+      // Decode HTML entities commonly found in transcripts
+      const text = (item.snippet || '')
         .replace(/&amp;/g, '&')
         .replace(/&#39;/g, "'")
         .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
         .replace(/\n/g, ' ')
         .trim();
+        
       rawText += text + ' ';
 
-      const startTime = item.start || 0;
-      const duration = item.duration || item.dur || 0;
+      // SerpAPI returns start_ms and end_ms in milliseconds
+      const startTime = (item.start_ms || 0) / 1000;
+      const endTime = (item.end_ms || 0) / 1000;
 
       return {
         text,
         startTime: Math.round(startTime * 100) / 100,
-        endTime: Math.round((startTime + duration) * 100) / 100
+        endTime: Math.round(endTime * 100) / 100
       };
     });
 
-    console.log(`[TranscriptService] Parsed ${segments.length} segments, raw text length: ${rawText.length}`);
+    // If no title from API, use first 50 chars of transcript as title
+    if (!videoTitle && segments.length > 0) {
+      videoTitle = segments[0].text.substring(0, 50) + (segments[0].text.length > 50 ? '...' : '');
+      console.log('[TranscriptService] Using first segment as title:', videoTitle);
+    }
 
     return {
       videoId,
+      title: videoTitle || 'YouTube Video',
       raw: rawText.trim(),
       segments
     };
@@ -101,7 +178,7 @@ const parseTranscriptSegments = (rawText) => {
   const parsedSegments = [];
 
   lines.forEach(line => {
-    // Match [MM:SS] or [HH:MM:SS]
+    // Match [MM:SS] or [HH:MM:SS] or [SS.SS]
     const match = line.match(/\[((\d{1,2}:)?\d{1,2}:\d{2})\]/);
     if (match) {
       const timeStr = match[1];

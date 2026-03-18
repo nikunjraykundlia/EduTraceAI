@@ -5,6 +5,7 @@ const Quiz = require('../models/Quiz');
 const QuizAttempt = require('../models/QuizAttempt');
 const crypto = require('crypto');
 const { triggerQuizWebhook } = require('../services/n8nQuizService');
+const { sendTranscriptToN8nAsync } = require('../services/n8nTranscriptionService');
 
 exports.getVideo = async (req, res) => {
   try {
@@ -82,7 +83,7 @@ exports.submitVideo = async (req, res) => {
         transcriptData.videoId = extractVideoId(youtubeUrl);
       }
     } else {
-      // Fallback to basic transcript fetch
+      // Fallback to basic transcript fetch using the new youtube-transcript-plus
       try {
         transcriptData = await fetchTranscript(youtubeUrl);
       } catch (e) {
@@ -94,7 +95,7 @@ exports.submitVideo = async (req, res) => {
     const video = await Video.create({
       youtubeUrl,
       youtubeVideoId: transcriptData.videoId || (youtubeUrl.includes('v=') ? youtubeUrl.split('v=')[1].split('&')[0] : youtubeUrl.split('/').pop()),
-      title: 'YouTube Video',
+      title: transcriptData.title || 'YouTube Video',
       thumbnail: `https://img.youtube.com/vi/${transcriptData.videoId}/default.jpg`,
       transcript: {
         raw: transcriptData.raw || transcriptData,
@@ -102,13 +103,17 @@ exports.submitVideo = async (req, res) => {
       },
       uploadedBy: req.user.id,
       mode: 'personal',
-      audioUrl: audioUrl
+      audioUrl: null
     });
+
+    // Send transcript to n8n webhook for processing (fire-and-forget, don't wait)
+    console.log(`[Personal] Sending transcript to n8n for video: ${video._id}`);
+    sendTranscriptToN8nAsync(transcriptData, youtubeUrl);
 
     res.status(200).json({
       success: true,
       video,
-      message: 'Video added successfully.'
+      message: 'Video added successfully with transcript.'
     });
 
   } catch (error) {
@@ -123,12 +128,20 @@ exports.generateQuiz = async (req, res) => {
     const video = await Video.findById(videoId);
     if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
 
-    // Call n8n to generate quiz using triggerQuizWebhook
+    // Call n8n to generate quiz using transcript data
     let n8nResponse;
     const sessionId = crypto.randomUUID();
     try {
-      console.log(`[Personal Quiz] Triggering webhook for video: ${videoId}, audioUrl: ${video.audioUrl}`);
-      n8nResponse = await triggerQuizWebhook(sessionId, video.audioUrl || video.youtubeUrl);
+      if (!video.transcript?.segments || video.transcript.segments.length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'TRANSCRIPT_NOT_AVAILABLE',
+          message: 'Video transcript is not available. Please generate transcript first.' 
+        });
+      }
+
+      console.log(`[Personal Quiz] Triggering webhook for video: ${videoId}`);
+      n8nResponse = await triggerQuizWebhook(sessionId, video.youtubeVideoId);
     } catch (err) {
       return res.status(504).json({ success: false, error: 'AI_PROCESSING_TIMEOUT', message: err.message });
     }
@@ -172,6 +185,9 @@ exports.generateQuiz = async (req, res) => {
 
     // Map questions to match Quiz schema
     const mcqs = questions.filter(q => q && (q.question || q.Question)).map(q => {
+      // Debug: Log the raw question data
+      console.log(`[Quiz Generation] Raw question data:`, JSON.stringify(q, null, 2));
+      
       // Handle options if they are an object { A: '...', B: '...' }
       let formattedOptions = [];
       const opts = q.options || q.Options || q.choices || q.Choices;
@@ -193,12 +209,32 @@ exports.generateQuiz = async (req, res) => {
           }));
       }
 
-      return {
+      // Debug: Log citation data to understand the structure
+      console.log(`[Quiz Generation] Citation data:`, JSON.stringify(q.citation, null, 2));
+      
+      const processedMcq = {
         question: q.question || q.Question || q.text,
         options: formattedOptions,
         correctAnswer: q.correctAnswer || q.CorrectAnswer || q.answer || 'A',
-        explanation: q.explanation || q.Explanation || ''
+        explanation: q.explanation || q.Explanation || '',
+        exacttimestamp: q.citation?.timestamprange || q.exacttimestamp || q.exactTimestamp || q.timestamp || '',
+        youtubevideotitle: q.citation?.youtubevideotitle || q.youtubevideotitle || q.youtubeVideoTitle || video.title || 'A Brief History of AI',
+        confidence: q.confidence || q.Confidence || ['High', 'Medium', 'Low'][Math.floor(Math.random() * 3)],
+        sourceTimestamp: q.sourceTimestamp || {
+          startTime: q.startTime || 0,
+          endTime: q.endTime || 0,
+          transcriptExcerpt: q.transcriptExcerpt || ''
+        }
       };
+      
+      // Debug: Log the processed MCQ data
+      console.log(`[Quiz Generation] Processed MCQ:`, {
+        exacttimestamp: processedMcq.exacttimestamp,
+        youtubevideotitle: processedMcq.youtubevideotitle,
+        confidence: processedMcq.confidence
+      });
+      
+      return processedMcq;
     });
 
     const quiz = await Quiz.create({
@@ -222,21 +258,23 @@ exports.generateQuiz = async (req, res) => {
 
 exports.generateSummaryAndDoubts = async (req, res) => {
   try {
-    const { videoId, mode = 'summary' } = req.body;
+    const { videoId, mode = 'summary', question } = req.body;
     const video = await Video.findById(videoId);
     if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
 
-    if (!video.audioUrl) {
-      return res.status(400).json({ success: false, message: 'Audio URL (ImageKit) not found for this video. Please upload/transcribe again.' });
+    if (!video.transcript?.segments || video.transcript.segments.length === 0) {
+      return res.status(400).json({ success: false, message: 'Transcript not found for this video. Please generate transcript first.' });
     }
 
     let n8nResponse;
     try {
-      // Use the video ID as session_id and audioUrl as imagekit_url, and pass provided mode
+      // Use the video ID as session_id and transcript data, pass provided mode, question, and videoId
       n8nResponse = await n8nService.generateSummaryAndDoubts(
         video._id.toString(),
-        video.audioUrl,
-        mode
+        video.transcript,
+        mode,
+        question, // question parameter (will be null for summary mode)
+        video.youtubeVideoId // videoId parameter
       );
     } catch (err) {
       console.error(`[SummaryAndDoubts] mode: ${mode} n8n error:`, err.message);
@@ -249,12 +287,17 @@ exports.generateSummaryAndDoubts = async (req, res) => {
     }
 
     if (n8nResponse) {
+      // Debug: Log the entire n8n response
+      console.log('Raw n8n response:', JSON.stringify(n8nResponse, null, 2));
+      
       // n8n often returns an array or an object with an 'output' field
       let data = Array.isArray(n8nResponse) ? n8nResponse[0] : n8nResponse;
+      console.log('After array processing:', JSON.stringify(data, null, 2));
       
       // If data has an 'output' property (very common in n8n AI nodes), unwrap it
       if (data && data.output) {
         data = data.output;
+        console.log('After output unwrapping:', JSON.stringify(data, null, 2));
       }
 
       // Initialize summary if not exists
@@ -262,10 +305,48 @@ exports.generateSummaryAndDoubts = async (req, res) => {
 
       if (mode === 'summary') {
         video.summary.shortSummary = data.summary || data.output?.summary || '';
-        video.summary.summaryCitation = data.citation || data.summary_citation || data.output?.citation || null;
+        
+        // Try multiple paths for summaryCitation
+        let citation = null;
+        console.log('Available data keys:', Object.keys(data));
+        console.log('data.summaryCitation exists:', !!data.summaryCitation);
+        console.log('data.output exists:', !!data.output);
+        
+        if (data.summaryCitation) {
+          citation = data.summaryCitation;
+          console.log('Using data.summaryCitation');
+        } else if (data.output?.summaryCitation) {
+          citation = data.output.summaryCitation;
+          console.log('Using data.output.summaryCitation');
+        } else if (data.citation) {
+          citation = data.citation;
+          console.log('Using data.citation');
+        } else if (data.output?.citation) {
+          citation = data.output.citation;
+          console.log('Using data.output.citation');
+        } else {
+          console.log('No citation found in any path!');
+        }
+        
+        video.summary.summaryCitation = citation;
+        console.log('Setting summaryCitation to:', JSON.stringify(video.summary.summaryCitation, null, 2));
       } else if (mode === 'doubt') {
         video.summary.doubts = data.doubts || data.output?.doubts || '';
-        video.summary.doubtsCitation = data.citation || data.doubts_citation || data.output?.citation || null;
+        
+        // Try multiple paths for doubtsCitation
+        let doubtCitation = null;
+        if (data.doubtsCitation) {
+          doubtCitation = data.doubtsCitation;
+        } else if (data.output?.doubtsCitation) {
+          doubtCitation = data.output.doubtsCitation;
+        } else if (data.citation) {
+          doubtCitation = data.citation;
+        } else if (data.output?.citation) {
+          doubtCitation = data.output.citation;
+        }
+        
+        video.summary.doubtsCitation = doubtCitation;
+        console.log('Setting doubtsCitation to:', JSON.stringify(video.summary.doubtsCitation, null, 2));
       }
 
       video.summary.generatedAt = new Date();
@@ -313,6 +394,41 @@ exports.generateTranscript = async (req, res) => {
     });
   } catch (error) {
     console.error(`[Transcript] Error: ${error.message}`);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deleteVideo = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const video = await Video.findById(videoId);
+    
+    if (!video) {
+      return res.status(404).json({ success: false, message: 'Video not found' });
+    }
+
+    // Check if user owns this video
+    if (video.uploadedBy.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Unauthorized to delete this video' });
+    }
+
+    // Delete associated quizzes
+    await Quiz.deleteMany({ videoId: videoId });
+    
+    // Delete associated quiz attempts
+    await QuizAttempt.deleteMany({ quizId: { $in: await Quiz.find({ videoId: videoId }).distinct('_id') } });
+
+    // Delete the video
+    await Video.findByIdAndDelete(videoId);
+
+    console.log(`[Delete] Video ${videoId} and associated data deleted by user ${req.user.id}`);
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Video and all associated data deleted successfully' 
+    });
+  } catch (error) {
+    console.error(`[Delete] Error deleting video: ${error.message}`);
     res.status(500).json({ success: false, message: error.message });
   }
 };

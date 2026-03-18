@@ -134,7 +134,7 @@ export default function VideoAnalysisPage() {
           )}
           {activeTab === 'chat' && (
             <div className="glass-panel" style={{ padding: '0.5rem' }}>
-              <ChatInterface videoId={videoId} />
+              <ChatInterface videoId={video.youtubeVideoId} />
             </div>
           )}
         </div>
@@ -148,6 +148,8 @@ export default function VideoAnalysisPage() {
           activeTime={playerInfo.currentTime} 
           loading={transcriptLoading}
           onGenerate={handleGenerateTranscript}
+          title={video.title}
+          youtubeUrl={video.youtubeUrl}
         />
       </div>
 
@@ -206,12 +208,12 @@ function QuizGeneratorTab({ videoId, quizzes, onQuizGenerated }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* History section */}
       {quizzes.length > 0 && (
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <History size={18} color="var(--accent-primary)" />
+        <div className="glass-panel" style={{ padding: '2rem' }}>
+          <h3 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <History size={20} color="var(--accent-primary)" />
             Recent Quizzes
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
             {quizzes.map((q) => (
               <div 
                 key={q._id} 
@@ -223,15 +225,15 @@ function QuizGeneratorTab({ videoId, quizzes, onQuizGenerated }) {
                     router.push(`/personal/quiz/${q._id}`);
                   }
                 }}
-                style={{ padding: '1rem', cursor: 'pointer', border: `1px solid ${q.isCompleted ? 'var(--success)' : 'var(--border-color)'}`, background: q.isCompleted ? 'rgba(46, 204, 113, 0.05)' : 'rgba(255,255,255,0.02)' }}
+                style={{ padding: '1.5rem', cursor: 'pointer', border: `1px solid ${q.isCompleted ? 'var(--success)' : 'var(--border-color)'}`, background: q.isCompleted ? 'rgba(46, 204, 113, 0.05)' : 'rgba(255,255,255,0.02)' }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <h4 style={{ fontSize: '0.9rem' }}>{q.title}</h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.8rem' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: '600', lineHeight: 1.3, flex: 1, marginRight: '0.5rem' }}>{q.title}</h4>
                   {q.isCompleted && (
-                    <span className="badge badge-green" style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}>Submitted ✓</span>
+                    <span className="badge badge-green" style={{ fontSize: '0.65rem', padding: '0.3rem 0.6rem', whiteSpace: 'nowrap' }}>Submitted ✓</span>
                   )}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
                   <span>{q.totalMCQs} MCQs</span>
                   <span>{new Date(q.createdAt).toLocaleDateString()}</span>
                 </div>
@@ -265,6 +267,26 @@ function QuizGeneratorTab({ videoId, quizzes, onQuizGenerated }) {
 
 function SummaryTab({ video, loading, onGenerate }) {
   const summary = video?.summary;
+  const videoId = video?.youtubeVideoId;
+
+  const convertTimestampToSeconds = (timestamp) => {
+    const parts = timestamp.split(':');
+    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+  };
+
+  const extractAllTimestamps = (timestampRange) => {
+    if (!timestampRange) return [];
+    // Split by comma to get multiple ranges
+    const ranges = timestampRange.split(',').map(range => range.trim());
+    // Extract start times from each range
+    return ranges.map(range => {
+      const startTime = range.split('-')[0].trim();
+      return {
+        display: startTime,
+        seconds: convertTimestampToSeconds(startTime)
+      };
+    });
+  };
 
   const renderFormattedText = (text) => {
     if (!text) return null;
@@ -383,19 +405,22 @@ function SummaryTab({ video, loading, onGenerate }) {
                 <Sparkles size={12} />
                 Evidence-Based Grounding
               </div>
-              <p style={{ fontSize: '0.95rem', fontStyle: 'italic', color: 'var(--text-secondary)', lineHeight: '1.5', borderLeft: '2px solid var(--accent-primary)', paddingLeft: '1rem' }}>
-                "{summary.summaryCitation.evidence}"
-              </p>
+              {summary.summaryCitation.evidence && (
+                <p style={{ fontSize: '0.95rem', fontStyle: 'italic', color: 'var(--text-secondary)', lineHeight: '1.5', borderLeft: '2px solid var(--accent-primary)', paddingLeft: '1rem' }}>
+                  "{summary.summaryCitation.evidence}"
+                </p>
+              )}
               <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                <span><strong>File:</strong> {summary.summaryCitation.file}</span>
+                <span><strong>Timestamp:</strong> {summary.summaryCitation.timestampRange}</span>
                 <span>•</span>
-                <span><strong>Section:</strong> {summary.summaryCitation.section}</span>
+                <span><strong>Video:</strong> {summary.summaryCitation.youtubeVideoTitle}</span>
               </div>
             </div>
           )}
         </div>
       )}
 
+      
       {/* Bottom Actions */}
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
         <button 

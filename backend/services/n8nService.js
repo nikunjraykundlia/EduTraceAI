@@ -48,16 +48,17 @@ exports.resolveDoubt = async (webhookPayload) => {
   }
 };
 /**
- * Sends a session_id, imagekit_url, and mode to n8n to generate summary or doubt solving
+ * Sends a session_id, transcript data, and mode to n8n to generate summary or doubt solving
  */
-exports.generateSummaryAndDoubts = async (sessionId, imageUrl, mode = 'summary', question = null) => {
+exports.generateSummaryAndDoubts = async (sessionId, transcript, mode = 'summary', question = null, videoId = null) => {
   const payload = {
     session_id: sessionId,
-    imagekit_url: imageUrl,
+    videoId: videoId || transcript.videoId || transcript.youtubeVideoId,
     mode: mode
   };
 
-  if (question) {
+  // Add question only if mode is 'doubt' and question is provided
+  if (mode === 'doubt' && question) {
     payload.question = question;
   }
 

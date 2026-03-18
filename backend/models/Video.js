@@ -35,15 +35,15 @@ const videoSchema = new mongoose.Schema({
       { term: String, definition: String }
     ],
     summaryCitation: {
-      file: String,
-      section: String,
-      evidence: String
+      evidence: String,
+      timestampRange: String,
+      youtubeVideoTitle: String
     },
     doubts: { type: String },
     doubtsCitation: {
-      file: String,
-      section: String,
-      evidence: String
+      evidence: String,
+      timestampRange: String,
+      youtubeVideoTitle: String
     },
     generatedAt: { type: Date }
   }

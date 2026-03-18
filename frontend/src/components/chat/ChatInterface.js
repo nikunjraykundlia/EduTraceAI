@@ -12,13 +12,44 @@ export default function ChatInterface({ videoId }) {
     const [sessionId, setSessionId] = useState(null);
     const messagesEndRef = useRef(null);
 
+    const convertTimestampToSeconds = (timestamp) => {
+        const parts = timestamp.split(':');
+        return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+    };
+
+    const extractFirstTimestamp = (timestampRange) => {
+        if (!timestampRange) return '';
+        // Handle multiple timestamp ranges separated by comma
+        const firstRange = timestampRange.split(',')[0].trim();
+        // Extract only the start time (before the dash)
+        return firstRange.split('-')[0].trim();
+    };
+
+    const extractAllTimestamps = (timestampRange) => {
+        if (!timestampRange) return [];
+        // Split by comma to get multiple ranges
+        const ranges = timestampRange.split(',').map(range => range.trim());
+        // Extract start times from each range
+        return ranges.map(range => {
+            const startTime = range.split('-')[0].trim();
+            return {
+                display: startTime,
+                seconds: convertTimestampToSeconds(startTime)
+            };
+        });
+    };
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
     useEffect(() => {
         if (videoId) {
-            fetchChatHistory();
+            // Clear localStorage on page load to ensure chats are temporary
+            localStorage.removeItem(`chat_${videoId}`);
+            setMessages([]);
+            setSessionId(null);
+            setHistoryLoading(false);
         }
     }, [videoId]);
 
@@ -27,23 +58,8 @@ export default function ChatInterface({ videoId }) {
     }, [messages]);
 
     const fetchChatHistory = async () => {
-        setHistoryLoading(true);
-        try {
-            const response = await api.get(`/chat/${videoId}/history`);
-            if (response.data.success && response.data.sessions.length > 0) {
-                // For now, we just use the most recent session
-                const latestSession = response.data.sessions[0];
-                setSessionId(latestSession._id);
-                setMessages(latestSession.messages);
-            } else {
-                setMessages([]);
-                setSessionId(null);
-            }
-        } catch (error) {
-            console.error('Error fetching chat history:', error);
-        } finally {
-            setHistoryLoading(false);
-        }
+        // No longer fetching from MongoDB, using localStorage only
+        setHistoryLoading(false);
     };
 
     const handleSend = async (e) => {
@@ -61,17 +77,22 @@ export default function ChatInterface({ videoId }) {
         try {
             const response = await api.post(`/chat/${videoId}`, {
                 question: userQuestion,
-                sessionId: sessionId
+                sessionId: null // No session ID needed for localStorage
             });
 
             if (response.data.success) {
-                setSessionId(response.data.sessionId);
+                console.log('Chat response data:', JSON.stringify(response.data, null, 2));
                 const assistantMsg = {
                     role: 'assistant',
                     ...response.data.response,
                     timestamp: new Date()
                 };
+                console.log('Assistant message:', JSON.stringify(assistantMsg, null, 2));
                 setMessages((prev) => [...prev, assistantMsg]);
+                
+                // Store messages in localStorage
+                const updatedMessages = [...messages, tempUserMsg, assistantMsg];
+                localStorage.setItem(`chat_${videoId}`, JSON.stringify(updatedMessages));
             }
         } catch (error) {
             console.error('Chat error:', error);
@@ -82,6 +103,10 @@ export default function ChatInterface({ videoId }) {
                 timestamp: new Date()
             };
             setMessages((prev) => [...prev, errorMsg]);
+            
+            // Store error message in localStorage as well
+            const updatedMessages = [...messages, tempUserMsg, errorMsg];
+            localStorage.setItem(`chat_${videoId}`, JSON.stringify(updatedMessages));
         } finally {
             setLoading(false);
         }
@@ -174,19 +199,47 @@ export default function ChatInterface({ videoId }) {
                                                     <p style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                         <Quote size={12} /> Evidence from Transcript
                                                     </p>
+                                                    
+                                                    {/* Display video title at the top of evidence section */}
+                                                    {msg.youtubeVideoTitle && (
+                                                        <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '0.5rem' }}>
+                                                            <span style={{ fontSize: '0.8rem', fontWeight: '500', color: 'var(--accent-primary)' }}>
+                                                                <strong>Video:</strong> {msg.youtubeVideoTitle}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    
                                                     {msg.evidence.map((ev, eIdx) => (
                                                         <div key={eIdx} style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                                                             <p style={{ fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>"{ev.transcriptExcerpt}"</p>
-                                                            {ev.timestamp && (
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-secondary)', fontSize: '0.75rem' }}>
-                                                                    <Clock size={12} /> {Math.floor(ev.timestamp.startTime / 60)}:{(ev.timestamp.startTime % 60).toString().padStart(2, '0')}
-                                                                </div>
-                                                            )}
                                                         </div>
                                                     ))}
+                                                    
+                                                    {/* Display all timestamps from timestampRange */}
+                                                    {msg.timestampRange && (
+                                                        <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                                                            <p style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                                <Clock size={12} /> Relevant Timestamps
+                                                            </p>
+                                                            {extractAllTimestamps(msg.timestampRange).map((ts, tsIdx) => (
+                                                                <div key={tsIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
+                                                                    <a
+                                                                        href={`https://www.youtube.com/watch?v=${videoId}&t=${ts.seconds}s`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        style={{ color: 'var(--accent-primary)', textDecoration: 'underline', fontSize: '0.75rem' }}
+                                                                        onClick={() => console.log('Clicked timestamp:', { videoId, timestamp: ts.display, seconds: ts.seconds, url: `https://www.youtube.com/watch?v=${videoId}&t=${ts.seconds}s` })}
+                                                                    >
+                                                                        {ts.display}
+                                                                    </a>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
 
+                                            
                                             {msg.confidenceLevel && (
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
                                                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: getConfidenceColor(msg.confidenceLevel) }}></div>
