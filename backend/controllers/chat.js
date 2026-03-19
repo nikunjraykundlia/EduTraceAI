@@ -11,30 +11,23 @@ exports.askQuestion = async (req, res) => {
     const { videoId } = req.params;
     const { question, sessionId } = req.body;
 
-    console.log(`[Chat] Request received: videoId=${videoId}, question="${question}"`);
-    console.log(`[Chat] Request origin: ${req.headers.origin || 'unknown'}`);
-    console.log(`[Chat] User-Agent: ${req.headers['user-agent'] || 'unknown'}`);
 
     // First, find the video by youtubeVideoId or ObjectId
     let video;
     // Try to find by ObjectId first
     if (mongoose.Types.ObjectId.isValid(videoId)) {
       video = await Video.findById(videoId);
-      console.log(`[Chat] Video lookup by ObjectId: ${video ? 'found' : 'not found'}`);
     }
     
     // If not found by ObjectId, try by youtubeVideoId
     if (!video) {
       video = await Video.findOne({ youtubeVideoId: videoId });
-      console.log(`[Chat] Video lookup by youtubeVideoId: ${video ? 'found' : 'not found'}`);
     }
     
     if (!video) {
-      console.log(`[Chat] Video not found for videoId: ${videoId}`);
       return res.status(404).json({ success: false, message: 'Video not found. Please ensure the video has been processed.' });
     }
 
-    console.log(`[Chat] Video found: ${video._id}, has transcript: ${!!video.transcript}`);
 
     let chatSession;
     if (sessionId) {
@@ -66,7 +59,6 @@ exports.askQuestion = async (req, res) => {
     try {
       // Validate transcript exists before calling n8n
       if (!video.transcript || (!video.transcript.raw && !video.transcript.segments)) {
-        console.log(`[Chat] No transcript available for video: ${video._id}`);
         return res.status(400).json({ 
           success: false, 
           message: 'Video transcript not available. Please wait for transcription to complete.' 
@@ -75,7 +67,6 @@ exports.askQuestion = async (req, res) => {
 
       // Per user request, "doubts trigger if user clicks on 'Sends'"
       // We use the same service as summary but with mode: 'doubt'
-      console.log(`[Chat] Calling n8n with videoId: ${video._id}, question: ${question}`);
       n8nResponse = await n8nService.generateSummaryAndDoubts(
         video._id.toString(),
         video.transcript,
@@ -83,7 +74,6 @@ exports.askQuestion = async (req, res) => {
         question,
         video.youtubeVideoId
       );
-      console.log(`[Chat] n8n response:`, JSON.stringify(n8nResponse, null, 2));
     } catch (err) {
       console.error('[ChatDoubt] n8n error:', err.message);
       console.error('[ChatDoubt] Full error:', err);
@@ -97,16 +87,13 @@ exports.askQuestion = async (req, res) => {
     // Map the new output format back to the chat response
     // format: { doubts: "...", citation: { evidence: "..." } }
     let data = Array.isArray(n8nResponse) ? n8nResponse[0] : n8nResponse;
-    console.log(`[Chat] After array processing:`, JSON.stringify(data, null, 2));
     
     if (data && data.output) {
       data = data.output;
-      console.log(`[Chat] After output unwrapping:`, JSON.stringify(data, null, 2));
     }
 
     // Validate n8n response structure
     if (!data || typeof data !== 'object') {
-      console.log(`[Chat] Invalid n8n response structure:`, data);
       return res.status(500).json({ 
         success: false, 
         message: 'AI service returned invalid response. Please try again.' 

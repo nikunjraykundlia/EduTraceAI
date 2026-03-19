@@ -44,7 +44,6 @@ export default function ChatInterface({ videoId }) {
 
     const extractAllTimestamps = (timestampRange) => {
         if (!timestampRange) return [];
-        console.log('Raw timestampRange from n8n:', timestampRange);
         
         // Split by comma to get multiple ranges
         const ranges = timestampRange.split(',').map(range => range.trim());
@@ -52,7 +51,6 @@ export default function ChatInterface({ videoId }) {
         return ranges.map(range => {
             const startTime = range.split('-')[0].trim();
             const seconds = convertTimestampToSeconds(startTime);
-            console.log('Processing timestamp:', { range, startTime, seconds });
             
             return {
                 display: startTime,
@@ -116,13 +114,11 @@ export default function ChatInterface({ videoId }) {
             });
 
             if (response.data.success) {
-                console.log('Chat response data:', JSON.stringify(response.data, null, 2));
                 const assistantMsg = {
                     role: 'assistant',
                     ...response.data.response,
                     timestamp: new Date()
                 };
-                console.log('Assistant message:', JSON.stringify(assistantMsg, null, 2));
                 setMessages((prev) => [...prev, assistantMsg]);
                 
                 // Store messages in localStorage
@@ -160,7 +156,7 @@ export default function ChatInterface({ videoId }) {
         return (
             <div className="glass-panel" style={{ height: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)' }}>
                 <MessageSquare size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
-                <p style={{ color: 'var(--text-secondary)' }}>Select a lecture to start chatting with your AI Study Copilot.</p>
+                <p style={{ color: 'var(--text-secondary)' }}>Select a lecture to start chatting with your AI Doubt Resolver.</p>
             </div>
         );
     }
@@ -173,7 +169,7 @@ export default function ChatInterface({ videoId }) {
                     <Sparkles size={20} />
                 </div>
                 <div>
-                    <h3 style={{ fontSize: '1rem' }}>AI Study Copilot</h3>
+                    <h3 style={{ fontSize: '1rem' }}>AI Doubt Resolver</h3>
                     <p style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Online & Ready</p>
                 </div>
             </div>
@@ -213,12 +209,30 @@ export default function ChatInterface({ videoId }) {
                                     background: msg.role === 'user' ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
                                     color: 'white',
                                     border: msg.role === 'assistant' ? '1px solid var(--border-color)' : 'none',
-                                    boxShadow: msg.role === 'assistant' && msg.confidenceLevel ? `0 0 15px ${getConfidenceColor(msg.confidenceLevel)}20` : 'none'
+                                    boxShadow: msg.role === 'assistant' && msg.confidenceLevel ? `0 0 15px ${getConfidenceColor(msg.confidenceLevel)}20` : 'none',
+                                    position: 'relative'
                                 }}>
                                     {msg.role === 'user' ? (
                                         <p style={{ fontSize: '0.95rem' }}>{msg.content}</p>
                                     ) : (
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                            {/* Confidence level at top right */}
+                                            {msg.confidenceLevel && (
+                                                <div style={{ 
+                                                    position: 'absolute', 
+                                                    top: '0.75rem', 
+                                                    right: '0.75rem',
+                                                    display: 'flex', 
+                                                    alignItems: 'center', 
+                                                    gap: '0.5rem',
+                                                    background: 'rgba(0,0,0,0.3)',
+                                                    padding: '0.25rem 0.5rem',
+                                                    borderRadius: 'var(--radius-sm)'
+                                                }}>
+                                                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: getConfidenceColor(msg.confidenceLevel) }}></div>
+                                                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600' }}>{msg.confidenceLevel.toUpperCase()}</span>
+                                                </div>
+                                            )}
                                             {msg.shortAnswer && (
                                                 <div style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--accent-primary)', borderLeft: '2px solid var(--accent-primary)', paddingLeft: '0.75rem' }}>
                                                     {msg.shortAnswer}
@@ -244,15 +258,9 @@ export default function ChatInterface({ videoId }) {
                                                         </div>
                                                     )}
                                                     
-                                                    {msg.evidence.map((ev, eIdx) => (
-                                                        <div key={eIdx} style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                                                            <p style={{ fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>"{ev.transcriptExcerpt}"</p>
-                                                        </div>
-                                                    ))}
-                                                    
                                                     {/* Display all timestamps from timestampRange */}
                                                     {msg.timestampRange && (
-                                                        <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                                                        <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '0.5rem' }}>
                                                             <p style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                                                 <Clock size={12} /> Relevant Timestamps
                                                             </p>
@@ -263,7 +271,7 @@ export default function ChatInterface({ videoId }) {
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
                                                                         style={{ color: 'var(--accent-primary)', textDecoration: 'underline', fontSize: '0.75rem' }}
-                                                                        onClick={() => console.log('Clicked timestamp:', { videoId, youtubeVideoId, timestamp: ts.display, seconds: ts.seconds, url: `https://www.youtube.com/watch?v=${youtubeVideoId}&t=${ts.seconds}s` })}
+                                                                        onClick={() => {}}
                                                                     >
                                                                         {ts.display}
                                                                     </a>
@@ -271,14 +279,12 @@ export default function ChatInterface({ videoId }) {
                                                             ))}
                                                         </div>
                                                     )}
-                                                </div>
-                                            )}
-
-                                            
-                                            {msg.confidenceLevel && (
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: getConfidenceColor(msg.confidenceLevel) }}></div>
-                                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}> Confidence: {msg.confidenceLevel}</span>
+                                                    
+                                                    {msg.evidence.map((ev, eIdx) => (
+                                                        <div key={eIdx} style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                                                            <p style={{ fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>"{ev.transcriptExcerpt}"</p>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>
