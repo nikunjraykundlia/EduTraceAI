@@ -166,11 +166,4 @@ EduTrace AI is a next-generation educational platform that leverages Artificial 
 
 ---
 
-## 👥 Team AI Bytes
-
-**Hackverse 2k26**
-- AI-powered educational platform built with passion for learning
-
----
-
 > **🎓 EduTrace AI - Making education accessible, interactive, and intelligent.**
