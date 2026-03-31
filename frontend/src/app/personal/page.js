@@ -290,9 +290,6 @@ export default function PersonalModeHome() {
         )}
       </div>
 
-      <style jsx>{`
-        @keyframes slideRight { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
-      `}</style>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import Navbar from '@/components/layout/Navbar';
 import './globals.css';
 
 export const metadata = {
-  title: 'EduTrace AI',
+  title: 'Build-it ON',
   description: 'Automated Video-to-Assessment Pipeline with Gamification.',
 };
 

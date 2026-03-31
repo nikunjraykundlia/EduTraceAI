@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCoins } from '@/context/CoinsContext';
 import { Coins, LogOut, User as UserIcon } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import Logo from '@/components/common/Logo';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -13,13 +14,8 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <Link href="/" className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'var(--text-primary)' }}>
-        <div style={{ background: 'var(--accent-gradient)', padding: '0.4rem', borderRadius: '0.5rem', display: 'flex' }}>
-          <Coins size={20} color="white" />
-        </div>
-        <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-          EduTrace AI
-        </span>
+      <Link href="/" className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
+        <Logo size="md" />
       </Link>
 
       <div className="nav-links">

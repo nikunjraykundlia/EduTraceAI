@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const QUIZ_WEBHOOK_URL = process.env.N8N_QUIZ_WEBHOOK_URL || 'https://nikunjn8n.up.railway.app/webhook/get-quiz-queries';
+const QUIZ_WEBHOOK_URL = process.env.N8N_QUIZ_WEBHOOK_URL || 'https://nikunjn8n.up.railway.app/webhook/get-5-quiz';
 
 /**
  * Triggers quiz-generation webhook with session_id and videoId.

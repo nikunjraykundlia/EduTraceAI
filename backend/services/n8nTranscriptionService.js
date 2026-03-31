@@ -7,7 +7,7 @@ const axios = require('axios');
  * @returns {Promise<Object>} - Transcript response from n8n
  */
 const sendAudioUrlToN8n = async (audioUrl, youtubeUrl) => {
-    const WEBHOOK_URL = process.env.N8N_TRANSCRIPTION_WEBHOOK || 'https://nikunjn8n.up.railway.app/webhook/upload-yt';
+    const WEBHOOK_URL = process.env.N8N_TRANSCRIPTION_WEBHOOK || 'https://nikunjn8n.up.railway.app/webhook/upload-youtube';
     const maxRetries = 2;
     let lastError;
 
@@ -64,7 +64,7 @@ const sendAudioUrlToN8n = async (audioUrl, youtubeUrl) => {
  * @returns {Promise<Object>} - Response from n8n
  */
 const sendTranscriptToN8n = async (transcriptData, youtubeUrl) => {
-    const WEBHOOK_URL = process.env.N8N_TRANSCRIPTION_WEBHOOK || 'https://nikunjn8n.up.railway.app/webhook/upload-yt';
+    const WEBHOOK_URL = process.env.N8N_TRANSCRIPTION_WEBHOOK || 'https://nikunjn8n.up.railway.app/webhook/upload-youtube';
     const maxRetries = 2;
     let lastError;
 
@@ -121,7 +121,7 @@ const sendTranscriptToN8n = async (transcriptData, youtubeUrl) => {
  * @param {string} youtubeUrl - Original YouTube URL for context
  */
 const sendTranscriptToN8nAsync = (transcriptData, youtubeUrl) => {
-    const WEBHOOK_URL = process.env.N8N_TRANSCRIPTION_WEBHOOK || 'https://nikunjn8n.up.railway.app/webhook/upload-yt';
+    const WEBHOOK_URL = process.env.N8N_TRANSCRIPTION_WEBHOOK || 'https://nikunjn8n.up.railway.app/webhook/upload-youtube';
     
     console.log(`[FireForget] Sending transcript to n8n: ${WEBHOOK_URL}`);
     
