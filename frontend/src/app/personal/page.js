@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Video, History, Play, Trash2 } from 'lucide-react';
+import { Video, History, Play, Trash2, CheckCircle2, ArrowRight } from 'lucide-react';
 import TranscriptPanel from '@/components/video/TranscriptPanel';
+import './Personal.css';
 
 export default function PersonalModeHome() {
   const [url, setUrl] = useState('');
@@ -48,8 +49,6 @@ export default function PersonalModeHome() {
     setVideoId(null);
 
     try {
-      // Use the fast submission endpoint which uses youtube-transcript-plus
-      // This also triggers the advanced audio-pipeline in the background
       const res = await api.post('/personal/video', { youtubeUrl: url });
 
       if (res.data.success) {
@@ -87,25 +86,20 @@ export default function PersonalModeHome() {
     }
   };
 
-  // Helper to extract segments for TranscriptPanel
   const getTranscriptSegments = () => {
     if (!transcriptData) return [];
     
-    // 1. If we have segments array directly (standard format from backend)
     if (transcriptData.segments && Array.isArray(transcriptData.segments) && transcriptData.segments.length > 0) {
       return transcriptData.segments;
     }
     
-    // 2. If transcriptData itself is an array of segments
     if (Array.isArray(transcriptData) && transcriptData.length > 0) {
       return transcriptData;
     }
     
-    // 3. Try to parse from raw text if segments are missing
     const rawText = transcriptData.raw || transcriptData.timestampedTranscript || (typeof transcriptData === 'string' ? transcriptData : "");
     if (!rawText) return [{ startTime: 0, text: "No transcript content available." }];
 
-    // Simple parsing for timestamped text like [MM:SS] Text
     const lines = rawText.split('\n');
     const parsedSegments = [];
 
@@ -137,43 +131,68 @@ export default function PersonalModeHome() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '4rem' }}>
-      <div className="page-header" style={{ textAlign: 'center' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '1rem', borderRadius: 'var(--radius-full)' }}>
-            <Video size={48} />
-          </div>
-        </div>
-        <h1 className="page-title">Personal Mode</h1>
-        <p className="page-description">Paste any educational YouTube URL below to extract a high-fidelity transcript using our AI pipeline.</p>
+    <div style={{ paddingBottom: '4rem' }}>
+      <div className="section-label" style={{ marginBottom: '2rem' }}>
+        01 — Personal Extraction Interface
       </div>
 
-      <div className="glass-card" style={{ padding: '2rem', marginBottom: '3rem' }}>
-
+      <div className="extraction-card top-highlight">
         {!transcriptData ? (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
-              <input
-                type="url"
-                className="input-field"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                required
-                placeholder="https://www.youtube.com/watch?v=..."
-                disabled={loading}
-                style={{ padding: '1rem', fontSize: '1.1rem', borderColor: url && !isYoutubeUrl(url) ? 'var(--danger)' : '' }}
-              />
-              {url && !isYoutubeUrl(url) && (
-                <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginTop: '0.5rem' }}>Please enter a valid YouTube URL.</p>
-              )}
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ padding: '1rem 2rem', fontSize: '1.1rem' }} disabled={loading || !url || !isYoutubeUrl(url)}>
-              {loading ? 'Processing...' : 'Start Extraction'}
-            </button>
-          </form>
+          <div>
+            <h2 className="t-h2" style={{ marginBottom: '0.5rem' }}>Inject Video Source</h2>
+            <p className="t-small" style={{ marginBottom: '2rem' }}>Enter any educational YouTube URL to extract taxonomy and insights.</p>
+            
+            <form onSubmit={handleSubmit} className="url-input-container">
+              <div style={{ flex: 1, position: 'relative' }}>
+                <input
+                  type="url"
+                  className="input-field mono"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  required
+                  placeholder="https://youtube.com/watch?v=..."
+                  disabled={loading}
+                  style={{ 
+                    borderColor: url && !isYoutubeUrl(url) ? 'var(--rose)' : '',
+                    paddingTop: '0.85rem', paddingBottom: '0.85rem'
+                  }}
+                />
+                {url && !isYoutubeUrl(url) && (
+                  <p style={{ color: 'var(--rose)', fontSize: '0.85rem', marginTop: '0.5rem', fontFamily: 'var(--font-data)' }}>
+                    INVALID_URL_FORMAT
+                  </p>
+                )}
+              </div>
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                disabled={loading || !url || !isYoutubeUrl(url)}
+                style={{ padding: '0.85rem 1.5rem', height: '48px' }}
+              >
+                {loading ? 'Processing...' : (
+                  <>Extract <ArrowRight size={16} /></>
+                )}
+              </button>
+            </form>
+
+            {loading && !transcriptData && (
+              <div style={{ marginTop: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span className="t-label" style={{ color: 'var(--cyan)' }}>Deep-Extracting Context</span>
+                  <span className="t-label" style={{ color: 'var(--text-muted)' }}>5-10s</span>
+                </div>
+                <div className="extraction-loader">
+                  <div className="extraction-knob"></div>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
-          <div className="animate-fade-in">
-            <div className="badge badge-green" style={{ marginBottom: '1.5rem' }}>✅ Transcription Complete</div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem' }}>
+              <CheckCircle2 color="var(--emerald)" size={20} />
+              <span className="t-label" style={{ color: 'var(--emerald)', margin: 0 }}>Extraction Complete</span>
+            </div>
             
             <div style={{ marginBottom: '2rem' }}>
               <TranscriptPanel 
@@ -188,108 +207,69 @@ export default function PersonalModeHome() {
 
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
               <button onClick={() => setTranscriptData(null)} className="btn btn-secondary">
-                Try Another URL
+                Disconnect Source
               </button>
-              <button onClick={handleProceed} className="btn btn-primary" style={{ padding: '0.75rem 2rem' }} disabled={loading}>
-                {loading ? 'Saving...' : 'Proceed to Quiz & Summary'}
+              <button onClick={handleProceed} className="btn btn-primary" disabled={loading}>
+                {loading ? 'Committing...' : 'Enter Focus Viewer'}
               </button>
-            </div>
-          </div>
-        )}
-
-        {loading && !transcriptData && (
-          <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <p style={{ color: 'var(--accent-primary)', fontWeight: '600' }}>Deep-Extracting Audio & Context</p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>This powerful AI process can take 30-60 seconds for precision.</p>
-            </div>
-            <div style={{ width: '100%', height: '4px', background: 'var(--bg-tertiary)', borderRadius: '4px', marginTop: '1rem', overflow: 'hidden' }}>
-              <div style={{ width: '50%', height: '100%', background: 'var(--accent-gradient)', animation: 'slideRight 2s infinite ease-in-out' }}></div>
             </div>
           </div>
         )}
       </div>
 
-      {/* History Section */}
-      <div className="animate-fade-in" style={{ marginTop: '4rem' }}>
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '0.4rem', borderRadius: 'var(--radius-md)' }}>
-            <History size={20} />
-          </div>
-          Extraction History
-        </h2>
+      <div className="section-label" style={{ marginTop: '4rem', marginBottom: '1.5rem' }}>
+        02 — Extracted Knowledge Archives
+      </div>
 
-        {mounted && history.length === 0 ? (
-          <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
-            <p style={{ color: 'var(--text-secondary)' }}>No previous extractions found. Start by pasting a YouTube URL above!</p>
-          </div>
-        ) : mounted ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem' }}>
-            {history.map((video) => (
-              <div 
-                key={video._id} 
-                className="glass-card" 
-                onClick={() => router.push(`/personal/video/${video._id}`)}
-                style={{ cursor: 'pointer', overflow: 'hidden', padding: 0, transition: 'transform 0.2s', border: '1px solid var(--border-color)' }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-              >
-                <div style={{ position: 'relative', width: '100%', paddingBottom: '56.25%', background: '#000' }}>
-                  <img 
-                    src={video.thumbnail || `https://img.youtube.com/vi/${video.youtubeVideoId}/mqdefault.jpg`} 
-                    alt={video.title}
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}
-                  />
-                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate( -50%, -50%)', background: 'rgba(0,0,0,0.5)', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Play size={20} color="white" fill="white" />
+      {mounted && history.length === 0 ? (
+        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <p className="t-small">No archives located. Initialize an extraction above.</p>
+        </div>
+      ) : mounted ? (
+        <div className="history-grid">
+          {history.map((video) => (
+            <div 
+              key={video._id} 
+              className="video-card"
+              onClick={() => router.push(`/personal/video/${video._id}`)}
+            >
+              <div className="video-thumbnail-container">
+                <img 
+                  src={video.thumbnail || `https://img.youtube.com/vi/${video.youtubeVideoId}/mqdefault.jpg`} 
+                  className="video-thumbnail"
+                  alt={video.title}
+                />
+                <div className="video-thumbnail-overlay">
+                  <div className="play-overlay">
+                    <Play size={18} fill="currentColor" style={{ marginLeft: '2px' }} />
                   </div>
                 </div>
-                <div style={{ padding: '1rem', position: 'relative', minHeight: '80px' }}>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '0.4rem', lineClamp: 2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {video.title}
-                  </h3>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Extracted on {new Date(video.createdAt).toLocaleDateString()}
-                  </p>
-                  <button
-                    onClick={(e) => handleDeleteVideo(e, video._id)}
-                    style={{
-                      position: 'absolute',
-                      bottom: '10px',
-                      right: '10px',
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '32px',
-                      height: '32px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      color: 'var(--danger)'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                      e.currentTarget.style.transform = 'scale(1.1)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                      e.currentTarget.style.transform = 'scale(1)';
-                    }}
-                    title="Delete video"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>Loading history...</div>
-        )}
-      </div>
-
+              <div className="video-content">
+                <h3 className="video-title" title={video.title}>
+                  {video.title}
+                </h3>
+                <div className="video-meta">
+                  <span className="badge badge-cyan">Processed</span>
+                  <span className="video-date">
+                    {new Date(video.createdAt).toLocaleDateString().replace(/\//g, '.')}
+                  </span>
+                </div>
+                <button
+                  className="btn-delete-video"
+                  onClick={(e) => handleDeleteVideo(e, video._id)}
+                  title="Delete Protocol"
+                  style={{ position: 'absolute', top: '10px', right: '10px' }}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Loading records...</div>
+      )}
     </div>
   );
 }

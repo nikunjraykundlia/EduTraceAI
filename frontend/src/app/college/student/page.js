@@ -56,59 +56,74 @@ export default function StudentDashboard() {
     }
   };
 
-  if (loading || !user) return <div style={{ textAlign: 'center', marginTop: '4rem' }}>Loading Student Dashboard...</div>;
+  if (loading || !user) return <div style={{ textAlign: 'center', marginTop: '4rem', fontFamily: 'var(--font-data)' }}>Initializing Node Uplink...</div>;
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto', paddingBottom: '4rem' }}>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }}>
         <div>
-          <h1 className="page-title">My Classrooms</h1>
-          <p className="page-description">View your enrolled classes and complete pending assignments.</p>
+          <h1 className="t-h3" style={{ marginBottom: '0.5rem' }}>STUDENT MODULE</h1>
+          <p className="t-small" style={{ color: 'var(--text-secondary)' }}>Access enrolled sync nodes and execute pending evaluations.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-          <UserPlus size={18} /> Join Class
+        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <UserPlus size={18} /> Sync to Node
         </button>
       </div>
 
       <div className="grid-cards">
         {classes.length === 0 ? (
-          <div className="glass-card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>You haven't joined any classes</h3>
-            <p style={{ marginBottom: '1.5rem' }}>Ask your instructor for a Join Code to connect to their digital classroom.</p>
-            <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>Join Your First Class</button>
+          <div style={{ 
+            gridColumn: '1 / -1', 
+            textAlign: 'center', 
+            padding: '5rem 2rem', 
+            border: '1px solid var(--stroke-2)', 
+            background: 'var(--surface-1)', 
+            borderRadius: 'var(--radius-card)' 
+          }}>
+            <h3 className="t-h4" style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>ZERO ESTABLISHED UPLINKS</h3>
+            <p className="t-small" style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>Obtain an authentication vector (Join Code) from an instructor to initialize synchronization.</p>
+            <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>Initialize Link</button>
           </div>
         ) : (
           classes.map((cls) => (
-            <div key={cls._id} className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
-              <h2 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{cls.name}</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>Instructor: {cls.instructorId?.name || 'Unknown'}</p>
+            <div key={cls._id} style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              background: 'var(--surface-1)', 
+              border: '1px solid var(--stroke-2)', 
+              borderRadius: 'var(--radius-card)', 
+              padding: '1.5rem',
+              transition: 'all 0.2s'
+            }}>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', marginBottom: '0.25rem', color: 'var(--text-primary)' }}>{cls.name}</h2>
+              <p style={{ fontFamily: 'var(--font-data)', fontSize: '11px', color: 'var(--cyan)', textTransform: 'uppercase', marginBottom: '1.5rem' }}>Supervisor: {cls.instructorId?.name || 'Unknown'}</p>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-                  <Clock size={20} color="var(--warning)" style={{ margin: '0 auto 0.5rem' }} />
-                  <span style={{ display: 'block', fontSize: '1.25rem', fontWeight: 'bold' }}>{cls.quizzes?.length || 0}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Quizzes</span>
+                <div style={{ background: 'var(--surface-0)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--stroke-1)', textAlign: 'center' }}>
+                  <Clock size={16} color="var(--yellow)" style={{ margin: '0 auto 0.5rem' }} />
+                  <span style={{ fontFamily: 'var(--font-display)', display: 'block', fontSize: '24px', fontWeight: 'bold' }}>{cls.quizzes?.length || 0}</span>
+                  <span style={{ fontFamily: 'var(--font-data)', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Pending Arrays</span>
                 </div>
-                <div style={{ background: 'var(--bg-tertiary)', padding: '1rem', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-                  <CheckCircle size={20} color="var(--success)" style={{ margin: '0 auto 0.5rem' }} />
-                  <span style={{ display: 'block', fontSize: '1.25rem', fontWeight: 'bold' }}>0</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Completed</span>
+                <div style={{ background: 'var(--surface-0)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--stroke-1)', textAlign: 'center' }}>
+                  <CheckCircle size={16} color="var(--emerald)" style={{ margin: '0 auto 0.5rem' }} />
+                  <span style={{ fontFamily: 'var(--font-display)', display: 'block', fontSize: '24px', fontWeight: 'bold' }}>0</span>
+                  <span style={{ fontFamily: 'var(--font-data)', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Executed</span>
                 </div>
               </div>
 
               <Link href={`/college/student/${cls._id}`} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                Enter Classroom
+                Access Matrix
               </Link>
             </div>
           ))
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Join a Classroom">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Establish Node Sync">
         <form onSubmit={handleJoinClass}>
           <div className="input-group">
-            <label className="input-label">Class Join Code</label>
+            <label className="input-label" style={{ fontFamily: 'var(--font-data)', textTransform: 'uppercase', fontSize: '11px', color: 'var(--text-secondary)' }}>Node authentication key</label>
             <input
               type="text"
               className="input-field"
@@ -116,12 +131,13 @@ export default function StudentDashboard() {
               onChange={(e) => setJoinCode(e.target.value)}
               placeholder="e.g. ABCD-1234"
               required
+              style={{ fontFamily: 'var(--font-data)' }}
             />
           </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            Ask your instructor for the unique join code to access their classroom.
+          <p style={{ fontFamily: 'var(--font-data)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+            Input the specific cryptographic identifier assigned by your instructor to establish authorization.
           </p>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>Join Class</button>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', fontFamily: 'var(--font-data)', textTransform: 'uppercase' }}>Initialize Sync</button>
         </form>
       </Modal>
 

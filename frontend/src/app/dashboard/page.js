@@ -3,9 +3,10 @@
 import { useAuth } from '@/context/AuthContext';
 import { useCoins } from '@/context/CoinsContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { BookOpen, GraduationCap, Video, Trophy, BarChart3 } from 'lucide-react';
+import { BookOpen, GraduationCap, Video, Trophy, BarChart3, ArrowRight } from 'lucide-react';
+import './Dashboard.css';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -18,81 +19,115 @@ export default function Dashboard() {
     }
   }, [user, loading, router]);
 
+  const handleMouseMove = (e, ref) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    ref.current.style.setProperty('--mouse-x', `${x}px`);
+    ref.current.style.setProperty('--mouse-y', `${y}px`);
+  };
+
+  const personalCardRef = useRef(null);
+  const collegeCardRef = useRef(null);
+
   if (loading || !user) return <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4rem' }}>Loading...</div>;
 
   return (
-    <div className="animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title">Welcome back, {user.name.split(' ')[0]}!</h1>
-        <p className="page-description">What would you like to learn today?</p>
+    <div className="dashboard-container">
+      <div className="greeting-wrapper">
+        <div className="eyebrow-text">
+          <span style={{ color: 'var(--stroke-2)' }}>//</span> DASHBOARD ACCESS GRANTED
+        </div>
+        <h1 className="greeting-title">
+          Welcome back, <span className="name-gradient">{user.name.split(' ')[0]}</span>
+        </h1>
+        <p className="greeting-subtitle">System ready. What would you like to process today?</p>
       </div>
+
+      <div className="section-label">01 — Performance Readouts</div>
 
       {/* Stats Summary row */}
-      <div className="grid-cards" style={{ marginBottom: '3rem', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'rgba(251, 191, 36, 0.1)', color: 'var(--coin-gold)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-            <Trophy size={24} />
+      <div className="stats-grid">
+        <div className="stat-card top-highlight">
+          <div className="stat-header">
+            <span className="glow-dot amber"></span>
+            <span className="stat-label">Coins Balance</span>
           </div>
-          <div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Coins Balance</p>
-            <h3 style={{ fontSize: '1.5rem' }}>{coins}</h3>
-          </div>
+          <div className="stat-value">{coins}</div>
+          <div className="stat-trend">Reward credits available</div>
         </div>
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-            <BookOpen size={24} />
+
+        <div className="stat-card top-highlight">
+          <div className="stat-header">
+            <span className="glow-dot electric"></span>
+            <span className="stat-label">Quizzes Taken</span>
           </div>
-          <div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Quizzes Taken</p>
-            <h3 style={{ fontSize: '1.5rem' }}>{user.quizzesTaken || 0}</h3>
-          </div>
+          <div className="stat-value">{user.quizzesTaken || 0}</div>
+          <div className="stat-trend">Knowledge extraction sessions</div>
         </div>
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-            <BarChart3 size={24} />
+
+        <div className="stat-card top-highlight">
+          <div className="stat-header">
+            <span className="glow-dot emerald"></span>
+            <span className="stat-label">Avg Accuracy</span>
           </div>
-          <div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Average Score</p>
-            <h3 style={{ fontSize: '1.5rem' }}>{(user.averageScore || 0).toFixed(0)}%</h3>
-          </div>
+          <div className="stat-value">{(user.averageScore || 0).toFixed(0)}%</div>
+          <div className="stat-trend">Retained structural data</div>
         </div>
       </div>
 
-      <h2 style={{ marginBottom: '1.5rem', fontFamily: 'var(--font-display)' }}>Select Mode</h2>
+      <div className="section-label">02 — Operating Modes</div>
 
-      <div className="grid-cards">
-        {/* Personal Mode - Only for Students */}
+      <div className="mode-grid">
+        {/* Personal Mode */}
         {user.role === 'student' && (
-          <Link href="/personal">
-            <div className="glass-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', cursor: 'pointer', borderTop: '4px solid var(--accent-primary)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                <Video color="var(--accent-primary)" size={28} />
-                <h3 style={{ fontSize: '1.5rem' }}>Personal Mode</h3>
-              </div>
-              <p style={{ color: 'var(--text-secondary)', flex: 1 }}>
-                Self-paced learning. Paste any educational YouTube URL, instantly extract the transcript, and generate interactive quizzes and summaries.
-              </p>
-              <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="badge badge-blue">Self-Paced</span>
-                <span style={{ color: 'var(--accent-primary)', fontWeight: '500' }}>Start Learning &rarr;</span>
+          <Link href="/personal" style={{ textDecoration: 'none' }}>
+            <div 
+              className="mode-card personal"
+              ref={personalCardRef}
+              onMouseMove={(e) => handleMouseMove(e, personalCardRef)}
+            >
+              <div className="mode-card-content">
+                <div className="mode-icon-container">
+                  <Video size={20} />
+                </div>
+                <h3 className="mode-title">Personal Mode</h3>
+                <p className="mode-desc">
+                  Self-paced asynchronous ingestion. Feed any educational URL to extract the transcript, structural taxonomy, and interactive evaluations.
+                </p>
+                <div className="mode-cta-row">
+                  <span className="mode-cta-pill badge-electric">Self-Paced</span>
+                  <span className="mode-cta-text mode-cta-pill">
+                    Initialize Extraction <ArrowRight size={12} />
+                  </span>
+                </div>
               </div>
             </div>
           </Link>
         )}
 
         {/* College Mode */}
-        <Link href={user.role === 'instructor' ? '/college/instructor' : '/college/student'}>
-          <div className="glass-card" style={{ height: '100%', display: 'flex', flexDirection: 'column', cursor: 'pointer', borderTop: '4px solid var(--warning)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-              <GraduationCap color="var(--warning)" size={28} />
-              <h3 style={{ fontSize: '1.5rem' }}>College Mode</h3>
-            </div>
-            <p style={{ color: 'var(--text-secondary)', flex: 1 }}>
-              Structured learning. {user.role === 'instructor' ? 'Create and manage classrooms, assign verified videos, publish quizzes, and view analytics.' : 'Join your instructor\'s classrooms, watch verified lectures, and complete assigned quizzes.'}
-            </p>
-            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="badge badge-yellow">Classroom</span>
-              <span style={{ color: 'var(--warning)', fontWeight: '500' }}>Enter Classroom &rarr;</span>
+        <Link href={user.role === 'instructor' ? '/college/instructor' : '/college/student'} style={{ textDecoration: 'none' }}>
+          <div 
+            className="mode-card college"
+            ref={collegeCardRef}
+            onMouseMove={(e) => handleMouseMove(e, collegeCardRef)}
+          >
+            <div className="mode-card-content">
+              <div className="mode-icon-container">
+                <GraduationCap size={20} />
+              </div>
+              <h3 className="mode-title">College Mode</h3>
+              <p className="mode-desc">
+                Regimented synchronization array. {user.role === 'instructor' ? 'Broadcast verified knowledge bases to student clusters and monitor extraction efficiency.' : 'Connect to instructor nodes to receive validated knowledge payloads and standardized evaluations.'}
+              </p>
+              <div className="mode-cta-row">
+                <span className="mode-cta-pill badge-amber">Classroom</span>
+                <span className="mode-cta-text mode-cta-pill">
+                  Establish Uplink <ArrowRight size={12} />
+                </span>
+              </div>
             </div>
           </div>
         </Link>
@@ -100,3 +135,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

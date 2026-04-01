@@ -245,95 +245,101 @@ export default function QuizResultsPage() {
   return (
     <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', gap: '1rem', flexWrap: 'wrap' }}>
-        <Link href={`${window.location.origin}/personal/video/${results.videoId}`} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-          <ArrowLeft size={16} /> Back to Video
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', gap: '1rem', flexWrap: 'wrap' }}>
+        <Link href={`/personal/video/${results.videoId}`} className="btn btn-secondary" style={{ padding: '0.6rem 1.25rem', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <ArrowLeft size={16} /> Return to Video Matrix
         </Link>
-        <button ref={downloadButtonRef} onClick={handleDownload} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}>
-          <Download size={16} /> Download PDF
+        <button ref={downloadButtonRef} onClick={handleDownload} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', fontSize: '14px' }}>
+          <Download size={16} /> Extract PDF Report
         </button>
       </div>
 
       {/* Big Score Card */}
-      <div className="glass-card" style={{ textAlign: 'center', padding: '3rem 2rem', marginBottom: '3rem', position: 'relative', overflow: 'hidden' }}>
-        {results.totalScore >= 50 && (
-          <div style={{ position: 'absolute', top: '-50px', right: '-50px', opacity: 0.1, color: 'var(--success)' }}>
-            <Trophy size={300} />
+      <div className="glass-card" style={{ textAlign: 'center', padding: '4rem 2rem', marginBottom: '3rem', position: 'relative', overflow: 'hidden' }}>
+        {results.totalScore >= 70 && (
+          <div style={{ position: 'absolute', top: '-60px', right: '-60px', opacity: 0.05, color: 'var(--emerald)' }}>
+            <Trophy size={350} />
           </div>
         )}
-        <h1 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Assessment Complete</h1>
-        <div style={{ fontSize: '5rem', fontWeight: '800', lineHeight: 1, fontFamily: 'var(--font-display)', marginBottom: '1.5rem', 
-                      color: results.totalScore >= 50 ? 'var(--success)' : 'var(--danger)' }}>
+        <h1 className="t-h4" style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>EVALUATION MATRIX COMPLETE</h1>
+        <div style={{ 
+          fontSize: '6rem', 
+          fontWeight: '800', 
+          lineHeight: 1, 
+          fontFamily: 'var(--font-display)', 
+          marginBottom: '2.5rem', 
+          color: results.totalScore >= 70 ? 'var(--emerald)' : (results.totalScore >= 50 ? 'var(--yellow)' : 'var(--rose)')
+        }}>
           {results.totalScore}%
         </div>
         
-        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2rem', background: 'var(--bg-tertiary)', padding: '1rem 2rem', borderRadius: 'var(--radius-full)' }}>
-          <div>
-             <span style={{ display: 'block', fontSize: '1.5rem', fontWeight: 'bold' }}>{results.correctAnswers}</span>
-             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Correct</span>
+        <div style={{ display: 'inline-flex', alignItems: 'center', justifyItems: 'center', gap: '2.5rem', background: 'var(--surface-1)', padding: '1.5rem 3rem', borderRadius: 'var(--radius-card)', border: '1px solid var(--stroke-1)' }}>
+          <div style={{ textAlign: 'center' }}>
+             <span style={{ display: 'block', fontSize: '2rem', fontWeight: 'bold', fontFamily: 'var(--font-display)' }}>{results.correctAnswers}</span>
+             <span className="t-small" style={{ color: 'var(--text-secondary)' }}>Valid</span>
           </div>
-          <div style={{ width: '1px', background: 'var(--border-color)', height: '30px' }}></div>
-          <div>
-             <span style={{ display: 'block', fontSize: '1.5rem', fontWeight: 'bold' }}>{results.incorrectAnswers}</span>
-             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Incorrect</span>
+          <div style={{ width: '1px', background: 'var(--stroke-2)', height: '40px' }}></div>
+          <div style={{ textAlign: 'center' }}>
+             <span style={{ display: 'block', fontSize: '2rem', fontWeight: 'bold', fontFamily: 'var(--font-display)' }}>{results.incorrectAnswers}</span>
+             <span className="t-small" style={{ color: 'var(--text-secondary)' }}>Invalid</span>
           </div>
-          <div style={{ width: '1px', background: 'var(--border-color)', height: '30px' }}></div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: results.coinsEarned >= 0 ? 'var(--coin-gold)' : 'var(--danger)' }}>
-             <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '1.5rem', fontWeight: 'bold' }}>
-               <Coins size={20} /> {results.coinsEarned >= 0 ? `+${results.coinsEarned}` : results.coinsEarned}
+          <div style={{ width: '1px', background: 'var(--stroke-2)', height: '40px' }}></div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: results.coinsEarned >= 0 ? '#fbbf24' : 'var(--rose)' }}>
+             <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '2rem', fontWeight: 'bold', fontFamily: 'var(--font-display)' }}>
+               <Coins size={24} /> {results.coinsEarned >= 0 ? `+${results.coinsEarned}` : results.coinsEarned}
              </span>
-             <span style={{ fontSize: '0.8rem' }}>Coins</span>
+             <span className="t-small">Credits</span>
           </div>
         </div>
       </div>
 
       {/* Detailed Review */}
-      <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontFamily: 'var(--font-display)' }}>Detailed Review</h2>
+      <h2 className="t-h3" style={{ marginBottom: '2rem' }}>Detailed Diagnostic Review</h2>
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {results.detailedResults.map((item, idx) => (
-          <div key={idx} className="glass-card question-card" style={{ borderLeft: `4px solid ${item.isCorrect ? 'var(--success)' : 'var(--danger)'}`, position: 'relative' }}>
+          <div key={idx} className="glass-card question-card" style={{ borderLeft: `2px solid ${item.isCorrect ? 'var(--emerald)' : 'var(--rose)'}`, position: 'relative', padding: '2rem' }}>
             {/* Confidence Badge */}
-            <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+            <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
               <span 
-                className={`badge ${item.confidence === 'High' ? 'badge-success' : item.confidence === 'Low' ? 'badge-danger' : 'badge-warning'}`} 
-                style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                className={`badge ${item.confidence === 'High' ? 'badge-emerald' : item.confidence === 'Low' ? 'badge-rose' : 'badge-yellow'}`} 
+                style={{ fontFamily: 'var(--font-data)', textTransform: 'uppercase' }}
               >
                 {item.confidence || 'Medium'}
               </span>
               {item.topic && (
-                <span className="badge badge-purple" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span className="badge badge-cyan" style={{ fontFamily: 'var(--font-data)', textTransform: 'uppercase' }}>
                   {item.topic}
                 </span>
               )}
             </div>
             
-            <div style={{ paddingRight: '6rem', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.1rem', lineHeight: 1.4, fontWeight: '600' }}>
-                <span style={{ color: 'var(--text-secondary)', marginRight: '0.5rem' }}>Q{idx + 1}.</span>
+            <div style={{ paddingRight: '7rem', marginBottom: '2rem' }}>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', lineHeight: 1.4, fontWeight: '600' }}>
+                <span style={{ color: 'var(--cyan)', marginRight: '0.75rem', fontFamily: 'var(--font-data)' }}>[{idx + 1}]</span>
                 {item.question}
               </h3>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem', background: 'var(--bg-tertiary)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-              <div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Your Answer</p>
-                <p style={{ fontWeight: '600', fontSize: '1.05rem', color: item.isCorrect ? 'var(--success)' : 'var(--danger)' }}>
-                  {item.selectedAnswer === 'No option selected' ? 'No option selected' : `Option ${item.selectedAnswer}`}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+              <div style={{ background: 'var(--surface-1)', padding: '1.25rem', border: '1px solid var(--stroke-1)', borderRadius: 'var(--radius-sm)' }}>
+                <p className="t-small" style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Selected Input</p>
+                <p style={{ fontWeight: '500', fontSize: '16px', color: item.isCorrect ? 'var(--emerald)' : 'var(--rose)' }}>
+                  {item.selectedAnswer === 'No option selected' ? 'Null' : `Node ${item.selectedAnswer}`}
                 </p>
               </div>
-              <div>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Correct Answer</p>
-                <p style={{ fontWeight: '600', fontSize: '1.05rem', color: 'var(--success)' }}>Option {item.correctAnswer}</p>
+              <div style={{ background: 'var(--surface-1)', padding: '1.25rem', border: '1px solid var(--stroke-1)', borderRadius: 'var(--radius-sm)' }}>
+                <p className="t-small" style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Expected Output</p>
+                <p style={{ fontWeight: '500', fontSize: '16px', color: 'var(--emerald)' }}>Node {item.correctAnswer}</p>
               </div>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <FileText size={14} /> Explanation
+                <p className="t-small" style={{ color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase' }}>
+                  <FileText size={14} /> Diagnostic Explanation
                 </p>
-                <div style={{ fontSize: '0.95rem', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}>
+                <div style={{ fontSize: '14px', lineHeight: 1.6, background: 'var(--surface-2)', padding: '1.25rem', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)', fontFamily: 'var(--font-data)' }}>
                   {item.explanation}
                 </div>
               </div>
@@ -341,16 +347,16 @@ export default function QuizResultsPage() {
               {/* Video Context Section */}
               {item.youtubevideotitle && (
                 <div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    📹 Video Context
+                  <p className="t-small" style={{ color: 'var(--cyan)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase' }}>
+                    Context Node Source
                   </p>
-                  <div style={{ fontSize: '0.9rem', lineHeight: 1.6, background: 'rgba(139, 92, 246, 0.05)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(139, 92, 246, 0.2)', color: 'var(--text-secondary)' }}>
-                    <div>
-                      <strong>Video:</strong> {item.youtubevideotitle}
+                  <div style={{ fontSize: '14px', lineHeight: 1.6, background: 'rgba(0, 200, 220, 0.05)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(0, 200, 220, 0.2)', color: 'var(--text-secondary)' }}>
+                    <div style={{ marginBottom: '0.25rem' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Video:</strong> {item.youtubevideotitle}
                     </div>
                     {extractStartTime(item.exacttimestamp) && (
                       <div>
-                        <strong>Timestamp:</strong> {extractStartTime(item.exacttimestamp)}
+                        <strong style={{ color: 'var(--text-primary)' }}>Timestamp:</strong> {extractStartTime(item.exacttimestamp)}
                       </div>
                     )}
                   </div>
@@ -359,10 +365,10 @@ export default function QuizResultsPage() {
 
               {item.sourceTimestamp?.transcriptExcerpt && (
                 <div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', fontWeight: '700' }}>
-                    📎 Citation from Video
+                  <p className="t-small" style={{ color: 'var(--text-secondary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase' }}>
+                    Transcript Matrix Citation
                   </p>
-                  <div style={{ fontSize: '0.9rem', lineHeight: 1.6, fontStyle: 'italic', background: 'rgba(59, 130, 246, 0.05)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(59, 130, 246, 0.2)', color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: '14px', lineHeight: 1.6, fontStyle: 'italic', background: 'var(--surface-1)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--stroke-1)', color: 'var(--text-secondary)' }}>
                     "{item.sourceTimestamp.transcriptExcerpt}"
                   </div>
                 </div>
@@ -370,45 +376,45 @@ export default function QuizResultsPage() {
             </div>
             
             {(item.exacttimestamp || item.sourceTimestamp) && (
-              <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
                  <span 
-                   className="badge badge-blue" 
-                   style={{ cursor: 'pointer', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                   className="badge badge-cyan" 
+                   style={{ cursor: 'pointer', padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '14px', fontFamily: 'var(--font-data)' }}
                    onClick={() => {
-                     // Use exacttimestamp if available, otherwise fallback to sourceTimestamp
                      const timestamp = extractStartTime(item.exacttimestamp) || '';
                      let youtubeUrl = '';
                      
                      if (results.youtubeUrl) {
-                       // Extract video ID from YouTube URL or use the stored youtubeVideoId
                        const videoId = results.youtubeVideoId || 
                          results.youtubeUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/)?.[1];
                        
                        if (videoId && timestamp) {
-                         // Convert timestamp format "MM:SS" to seconds for YouTube t parameter
-                         const timeParts = timestamp.split(':');
                          let seconds = 0;
-                         if (timeParts.length === 2) {
-                           seconds = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
+                         if (timestamp.includes(':')) {
+                           const timeParts = timestamp.split(':');
+                           if (timeParts.length === 3) {
+                             seconds = parseInt(timeParts[0]) * 3600 + parseInt(timeParts[1]) * 60 + parseInt(timeParts[2]);
+                           } else if (timeParts.length === 2) {
+                             seconds = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
+                           }
+                         } else {
+                           seconds = Math.floor(parseFloat(timestamp) || 0);
                          }
                          
-                         // Create YouTube URL with timestamp
-                         youtubeUrl = `https://www.youtube.com/watch?v=${videoId}&t=${seconds}`;
+                         youtubeUrl = `https://www.youtube.com/watch?v=${videoId}&t=${seconds}s`;
                        } else if (videoId) {
                          youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
                        }
                      }
                      
-                     // Open YouTube video in new tab
                      if (youtubeUrl) {
                        window.open(youtubeUrl, '_blank');
                      } else {
-                       // Fallback: redirect to local video page
                        window.open(`${window.location.origin}/personal/video/${results.videoId}?t=${timestamp}`, '_blank');
                      }
                    }}
                  >
-                   Watch Concept in Video ({extractStartTime(item.exacttimestamp) || '0:00'})
+                   EXECUTE SOURCE REPLAY [{extractStartTime(item.exacttimestamp) || '0:00'}]
                  </span>
               </div>
             )}

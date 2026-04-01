@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
-import { FileText, Loader2, Download } from 'lucide-react';
+import { FileText, Loader2, Download, AlertCircle } from 'lucide-react';
 import api from '../../lib/api';
+import './TranscriptPanel.css';
 
 export default function TranscriptPanel({ segments, onTimestampClick, activeTime, loading, onGenerate, title, youtubeUrl }) {
   const [downloading, setDownloading] = useState(false);
@@ -26,16 +27,16 @@ export default function TranscriptPanel({ segments, onTimestampClick, activeTime
 
   if (!segments || segments.length === 0) {
     return (
-      <div className="glass-card" style={{ height: '400px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '2rem', textAlign: 'center' }}>
-        <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {loading ? <Loader2 className="animate-spin" size={24} /> : <FileText size={24} />}
+      <div className="transcript-container" style={{ alignItems: 'center', justifyContent: 'center', padding: '2rem', textAlign: 'center' }}>
+        <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--cyan)', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+          {loading ? <Loader2 className="animate-spin" size={24} /> : <AlertCircle size={24} />}
         </div>
         <div>
-          <h4 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
-            {loading ? 'Fetching transcript...' : 'No transcript available'}
+          <h4 className="t-h4" style={{ marginBottom: '0.5rem' }}>
+            {loading ? 'Ingesting Transcript...' : 'Transcript Unavailable'}
           </h4>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-            {loading ? 'This may take a few seconds.' : 'Could not auto-fetch. Try manually.'}
+          <p className="t-small" style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+            {loading ? 'Establishing index matrix.' : 'Index extraction failed.'}
           </p>
           {!loading && onGenerate && (
             <button 
@@ -43,7 +44,7 @@ export default function TranscriptPanel({ segments, onTimestampClick, activeTime
               className="btn btn-primary" 
               style={{ width: '100%', padding: '0.6rem', fontSize: '0.9rem' }}
             >
-              Retry
+              Retry Protocol
             </button>
           )}
         </div>
@@ -52,13 +53,9 @@ export default function TranscriptPanel({ segments, onTimestampClick, activeTime
   }
 
   return (
-    <div 
-      ref={containerRef}
-      className="glass-card" 
-      style={{ height: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1rem', scrollBehavior: 'smooth' }}
-    >
-      <div style={{ paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>Transcript</h3>
+    <div className="transcript-container">
+      <div className="transcript-header">
+        <h3 className="transcript-title">TRANSCRIPT LOG</h3>
         <button 
           onClick={async (e) => {
             e.stopPropagation();
@@ -82,7 +79,7 @@ export default function TranscriptPanel({ segments, onTimestampClick, activeTime
               link.remove();
             } catch (err) {
               console.error('Download failed:', err);
-              alert('Failed to download transcript. Please try again.');
+              alert('Failed to drop transcript payload. Please re-initiate.');
             } finally {
               setDownloading(false);
             }
@@ -92,60 +89,37 @@ export default function TranscriptPanel({ segments, onTimestampClick, activeTime
           style={{ 
             padding: '0.4rem 0.8rem', 
             fontSize: '0.8rem', 
-            borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.4rem'
           }}
         >
           {downloading ? <Loader2 className="animate-spin" size={14} /> : <Download size={14} />}
-          {downloading ? 'Preparing...' : 'Download PDF'}
+          {downloading ? 'Bundling...' : 'Extract as PDF'}
         </button>
       </div>
       
-      {segments.map((segment, idx) => {
-        const isActive = activeTime >= segment.startTime && activeTime < (segments[idx + 1]?.startTime || segment.endTime + 5);
-        
-        return (
-          <div 
-            key={idx}
-            ref={isActive ? activeSegmentRef : null}
-            onClick={() => onTimestampClick(segment.startTime)}
-            style={{
-              display: 'flex', 
-              gap: '1rem', 
-              padding: '0.75rem 0.5rem', 
-              paddingTop: idx === 0 ? '0.5rem' : '0.75rem',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-              borderLeft: isActive ? '4px solid var(--accent-primary)' : '4px solid transparent',
-              transition: 'all 0.3s ease',
-              transform: isActive ? 'translateX(5px)' : 'none',
-              marginLeft: isActive ? '-4px' : '0',
-              paddingLeft: isActive ? 'calc(0.5rem + 4px)' : '0.5rem'
-            }}
-            onMouseOver={(e) => {
-               if(!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
-            }}
-            onMouseOut={(e) => {
-               if(!isActive) e.currentTarget.style.background = 'transparent'
-            }}
-          >
-            <span style={{ color: 'var(--accent-primary)', fontFamily: 'monospace', fontSize: '0.85rem', flexShrink: 0, fontWeight: isActive ? 'bold' : 'normal' }}>
-              [{formatTime(segment.startTime)}]
-            </span>
-            <span style={{ 
-              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)', 
-              fontSize: '0.95rem',
-              fontWeight: isActive ? '600' : '400',
-              lineHeight: '1.4'
-            }}>
-              {segment.text}
-            </span>
-          </div>
-        );
-      })}
+      <div className="transcript-body" ref={containerRef}>
+        {segments.map((segment, idx) => {
+          const isActive = activeTime >= segment.startTime && activeTime < (segments[idx + 1]?.startTime || segment.endTime + 5);
+          
+          return (
+            <div 
+              key={idx}
+              ref={isActive ? activeSegmentRef : null}
+              onClick={() => onTimestampClick(segment.startTime)}
+              className={`transcript-segment ${isActive ? 'active' : ''}`}
+            >
+              <div className="transcript-timestamp">
+                [{formatTime(segment.startTime)}]
+              </div>
+              <div className="transcript-text">
+                {segment.text}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

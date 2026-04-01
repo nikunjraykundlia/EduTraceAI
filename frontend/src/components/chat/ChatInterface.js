@@ -91,7 +91,6 @@ export default function ChatInterface({ videoId }) {
     }, [messages]);
 
     const fetchChatHistory = async () => {
-        // No longer fetching from MongoDB, using localStorage only
         setHistoryLoading(false);
     };
 
@@ -110,7 +109,7 @@ export default function ChatInterface({ videoId }) {
         try {
             const response = await api.post(`/chat/${videoId}`, {
                 question: userQuestion,
-                sessionId: null // No session ID needed for localStorage
+                sessionId: null 
             });
 
             if (response.data.success) {
@@ -135,7 +134,6 @@ export default function ChatInterface({ videoId }) {
             };
             setMessages((prev) => [...prev, errorMsg]);
             
-            // Store error message in localStorage as well
             const updatedMessages = [...messages, tempUserMsg, errorMsg];
             localStorage.setItem(`chat_${videoId}`, JSON.stringify(updatedMessages));
         } finally {
@@ -145,42 +143,42 @@ export default function ChatInterface({ videoId }) {
 
     const getConfidenceColor = (level) => {
         switch (level) {
-            case 'high': return 'var(--success)';
-            case 'medium': return 'var(--warning)';
-            case 'low': return 'var(--danger)';
-            default: return 'var(--accent-primary)';
+            case 'high': return 'var(--emerald)';
+            case 'medium': return 'var(--yellow)';
+            case 'low': return 'var(--rose)';
+            default: return 'var(--cyan)';
         }
     };
 
     if (!videoId) {
         return (
-            <div className="glass-panel" style={{ height: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--border-color)' }}>
-                <MessageSquare size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
-                <p style={{ color: 'var(--text-secondary)' }}>Select a lecture to start chatting with your AI Doubt Resolver.</p>
+            <div className="glass-panel" style={{ height: '500px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: '1px dashed var(--stroke-2)' }}>
+                <MessageSquare size={48} style={{ opacity: 0.2, marginBottom: '1rem', color: 'var(--text-secondary)' }} />
+                <p className="t-small" style={{ color: 'var(--text-secondary)' }}>Select a node to initialize dialogue interface.</p>
             </div>
         );
     }
 
     return (
-        <div className="glass-panel" style={{ height: '600px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface-0)', borderLeft: '1px solid var(--stroke-1)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {/* Header */}
-            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '0.5rem', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--stroke-1)', display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--surface-1)' }}>
+                <div style={{ color: 'var(--cyan)' }}>
                     <Sparkles size={20} />
                 </div>
                 <div>
-                    <h3 style={{ fontSize: '1rem' }}>AI Doubt Resolver</h3>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Online & Ready</p>
+                    <h3 className="t-h4" style={{ marginBottom: '0.25rem' }}>AI INTELLIGENCE HUB</h3>
+                    <p style={{ fontFamily: 'var(--font-data)', fontSize: '11px', color: 'var(--emerald)', textTransform: 'uppercase' }}>● Connection Active</p>
                 </div>
             </div>
 
             {/* Messages */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                 {historyLoading ? (
-                    <div style={{ textAlign: 'center', opacity: 0.5, marginTop: '2rem' }}>Loading conversation history...</div>
+                    <div style={{ textAlign: 'center', opacity: 0.5, marginTop: '2rem', fontFamily: 'var(--font-data)' }}>Establishing link...</div>
                 ) : messages.length === 0 ? (
                     <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No messages yet. Ask anything about the lesson!</p>
+                        <p style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-data)', fontSize: '12px' }}>Vocalize query to commence evaluation.</p>
                     </div>
                 ) : (
                     messages.map((msg, idx) => (
@@ -189,90 +187,86 @@ export default function ChatInterface({ videoId }) {
                             flexDirection: 'column',
                             alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start'
                         }}>
-                            <div style={{ display: 'flex', gap: '0.75rem', maxWidth: '85%', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
+                            <div style={{ display: 'flex', gap: '1rem', maxWidth: '85%', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
                                 <div style={{
-                                    width: '32px',
-                                    height: '32px',
-                                    borderRadius: '50%',
+                                    width: '36px',
+                                    height: '36px',
                                     flexShrink: 0,
-                                    background: msg.role === 'user' ? 'var(--bg-tertiary)' : 'var(--accent-gradient)',
+                                    border: msg.role === 'user' ? '1px solid var(--cyan)' : '1px solid var(--stroke-2)',
+                                    background: msg.role === 'user' ? 'rgba(0, 200, 220, 0.1)' : 'var(--surface-2)',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    justifyContent: 'center'
+                                    justifyContent: 'center',
+                                    color: msg.role === 'user' ? 'var(--cyan)' : 'var(--text-secondary)'
                                 }}>
                                     {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
                                 </div>
 
                                 <div style={{
-                                    padding: msg.role === 'user' ? '0.75rem 1rem' : '1.25rem',
-                                    borderRadius: 'var(--radius-lg)',
-                                    background: msg.role === 'user' ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                                    color: 'white',
-                                    border: msg.role === 'assistant' ? '1px solid var(--border-color)' : 'none',
-                                    boxShadow: msg.role === 'assistant' && msg.confidenceLevel ? `0 0 15px ${getConfidenceColor(msg.confidenceLevel)}20` : 'none',
+                                    padding: '1.25rem',
+                                    background: msg.role === 'user' ? 'rgba(0, 200, 220, 0.1)' : 'var(--surface-1)',
+                                    color: 'var(--text-primary)',
+                                    border: msg.role === 'user' ? '1px solid var(--cyan)' : '1px solid transparent',
+                                    borderLeft: msg.role === 'assistant' ? '2px solid var(--text-secondary)' : undefined,
                                     position: 'relative'
                                 }}>
                                     {msg.role === 'user' ? (
-                                        <p style={{ fontSize: '0.95rem' }}>{msg.content}</p>
+                                        <p style={{ fontSize: '14px', lineHeight: '1.6' }}>{msg.content}</p>
                                     ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                            {/* Confidence level at top right */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                                             {msg.confidenceLevel && (
                                                 <div style={{ 
                                                     position: 'absolute', 
-                                                    top: '0.75rem', 
-                                                    right: '0.75rem',
+                                                    top: '1rem', 
+                                                    right: '1rem',
                                                     display: 'flex', 
                                                     alignItems: 'center', 
                                                     gap: '0.5rem',
-                                                    background: 'rgba(0,0,0,0.3)',
+                                                    background: 'var(--surface-2)',
                                                     padding: '0.25rem 0.5rem',
-                                                    borderRadius: 'var(--radius-sm)'
                                                 }}>
                                                     <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: getConfidenceColor(msg.confidenceLevel) }}></div>
-                                                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600' }}>{msg.confidenceLevel.toUpperCase()}</span>
+                                                    <span style={{ fontFamily: 'var(--font-data)', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{msg.confidenceLevel.toUpperCase()}</span>
                                                 </div>
                                             )}
                                             {msg.shortAnswer && (
-                                                <div style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--accent-primary)', borderLeft: '2px solid var(--accent-primary)', paddingLeft: '0.75rem' }}>
+                                                <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--cyan)', borderLeft: '2px solid var(--cyan)', paddingLeft: '0.75rem' }}>
                                                     {msg.shortAnswer}
                                                 </div>
                                             )}
 
-                                            <div style={{ fontSize: '0.95rem', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+                                            <div style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                                                 {msg.mainAnswer}
                                             </div>
 
                                             {msg.evidence && msg.evidence.length > 0 && (
-                                                <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                                    <p style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        <Quote size={12} /> Evidence from Transcript
+                                                <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                    <p style={{ fontFamily: 'var(--font-data)', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <Quote size={12} /> Matrix Citation
                                                     </p>
                                                     
-                                                    {/* Display video title at the top of evidence section */}
                                                     {msg.youtubeVideoTitle && (
-                                                        <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '0.5rem' }}>
-                                                            <span style={{ fontSize: '0.8rem', fontWeight: '500', color: 'var(--accent-primary)' }}>
-                                                                <strong>Video:</strong> {msg.youtubeVideoTitle}
+                                                        <div style={{ background: 'var(--surface-2)', padding: '0.75rem 1rem', border: '1px solid var(--stroke-1)', marginBottom: '0.5rem' }}>
+                                                            <span style={{ fontSize: '12px', color: 'var(--cyan)' }}>
+                                                                <strong style={{ color: 'var(--text-primary)' }}>Source:</strong> {msg.youtubeVideoTitle}
                                                             </span>
                                                         </div>
                                                     )}
                                                     
-                                                    {/* Display all timestamps from timestampRange */}
                                                     {msg.timestampRange && (
-                                                        <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '0.5rem' }}>
-                                                            <p style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                                                <Clock size={12} /> Relevant Timestamps
+                                                        <div style={{ background: 'var(--surface-2)', padding: '1rem', border: '1px solid var(--stroke-1)' }}>
+                                                            <p style={{ fontFamily: 'var(--font-data)', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                                                <Clock size={12} /> Sync Vectors
                                                             </p>
                                                             {extractAllTimestamps(msg.timestampRange).map((ts, tsIdx) => (
-                                                                <div key={tsIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
+                                                                <div key={tsIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                                                                     <a
                                                                         href={`https://www.youtube.com/watch?v=${youtubeVideoId}&t=${ts.seconds}s`}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        style={{ color: 'var(--accent-primary)', textDecoration: 'underline', fontSize: '0.75rem' }}
+                                                                        style={{ color: 'var(--cyan)', textDecoration: 'none', fontFamily: 'var(--font-data)', fontSize: '11px' }}
                                                                     >
-                                                                        {ts.display}
+                                                                        [{ts.display}] OPEN NODE
                                                                     </a>
                                                                 </div>
                                                             ))}
@@ -280,8 +274,8 @@ export default function ChatInterface({ videoId }) {
                                                     )}
                                                     
                                                     {msg.evidence.map((ev, eIdx) => (
-                                                        <div key={eIdx} style={{ background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                                                            <p style={{ fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>"{ev.transcriptExcerpt}"</p>
+                                                        <div key={eIdx} style={{ background: 'var(--surface-2)', padding: '1rem', border: '1px solid var(--stroke-1)', fontFamily: 'var(--font-data)' }}>
+                                                            <p style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--text-muted)' }}>"{ev.transcriptExcerpt}"</p>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -290,7 +284,7 @@ export default function ChatInterface({ videoId }) {
                                     )}
                                 </div>
                             </div>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.4rem', marginLeft: msg.role === 'user' ? '0' : '40px', marginRight: msg.role === 'user' ? '40px' : '0' }}>
+                            <span style={{ fontFamily: 'var(--font-data)', fontSize: '10px', color: 'var(--text-muted)', marginTop: '0.5rem', marginLeft: msg.role === 'user' ? '0' : '50px', marginRight: msg.role === 'user' ? '50px' : '0' }}>
                                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
@@ -300,17 +294,17 @@ export default function ChatInterface({ videoId }) {
             </div>
 
             {/* Input Area */}
-            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.2)', zIndex: 10 }}>
-                <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--stroke-1)', background: 'var(--surface-0)', zIndex: 10 }}>
+                <form onSubmit={handleSend} style={{ display: 'flex', gap: '1rem' }}>
                     <div style={{ flex: 1, position: 'relative' }}>
                         <input
                             type="text"
                             className="input-field"
-                            placeholder="Type your question here..."
+                            placeholder="Initialize query syntax..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             disabled={loading || !videoId}
-                            style={{ paddingRight: '1rem', width: '100%', height: '48px' }}
+                            style={{ padding: '0 1rem', width: '100%', height: '48px', fontFamily: 'var(--font-data)', fontSize: '12px' }}
                         />
                     </div>
                     <button
@@ -323,22 +317,22 @@ export default function ChatInterface({ videoId }) {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.5rem',
-                            minWidth: '100px'
+                            minWidth: '120px'
                         }}
                     >
                         {loading ? (
                             <div className="spinner" style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
                         ) : (
                             <>
-                                <span>Send</span>
-                                <Send size={16} />
+                                <span style={{ fontFamily: 'var(--font-data)', fontSize: '12px', textTransform: 'uppercase' }}>Transmit</span>
+                                <Send size={14} />
                             </>
                         )}
                     </button>
                 </form>
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.75rem' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <AlertCircle size={12} /> Powered by AI transcript analysis.
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+                    <p style={{ fontFamily: 'var(--font-data)', fontSize: '10px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', textTransform: 'uppercase' }}>
+                        <AlertCircle size={10} /> NLP Processing Active
                     </p>
                 </div>
             </div>

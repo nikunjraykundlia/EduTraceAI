@@ -9,13 +9,9 @@ const QUIZ_TIME_LIMIT = 60; // seconds
 
 const extractStartTime = (timestamp) => {
   if (!timestamp) return '';
-  
-  // Handle range format "MM:SS-MM:SS" or "H:MM:SS-H:MM:SS"
   if (timestamp.includes('-')) {
     return timestamp.split('-')[0].trim();
   }
-  
-  // Handle single timestamp format
   return timestamp;
 };
 
@@ -32,7 +28,6 @@ export default function QuizTakingPage() {
   const timerRef = useRef(null);
   const hasAutoSubmitted = useRef(false);
 
-  // Submit handler extracted so timer can call it
   const doSubmit = useCallback(async (currentAnswers, currentAttemptId) => {
     if (submitting || hasAutoSubmitted.current) return;
     hasAutoSubmitted.current = true;
@@ -49,7 +44,7 @@ export default function QuizTakingPage() {
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to submit quiz');
+      setError('Failed to submit protocol');
       setSubmitting(false);
       hasAutoSubmitted.current = false;
     }
@@ -60,7 +55,6 @@ export default function QuizTakingPage() {
       try {
         const res = await api.post(`/quiz/${quizId}/start`);
         if (res.data.success) {
-          // Check if already completed
           if (res.data.alreadyCompleted) {
             router.replace(`/personal/quiz/${quizId}/results?attemptId=${res.data.attemptId}`);
             return;
@@ -70,13 +64,12 @@ export default function QuizTakingPage() {
         }
       } catch (err) {
         console.error(err);
-        setError('Failed to load quiz');
+        setError('Failed to initialize protocol');
       }
     };
     startQuiz();
   }, [quizId, router]);
 
-  // Timer countdown
   useEffect(() => {
     if (!quiz || !attemptId) return;
 
@@ -93,7 +86,6 @@ export default function QuizTakingPage() {
     return () => clearInterval(timerRef.current);
   }, [quiz, attemptId]);
 
-  // Auto-submit when timer hits 0
   useEffect(() => {
     if (timeLeft === 0 && attemptId && !hasAutoSubmitted.current) {
       doSubmit(answers, attemptId);
@@ -117,54 +109,57 @@ export default function QuizTakingPage() {
     return `${mins}:${secs}`;
   };
 
-  if (error) return <div style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--danger)' }}>{error}</div>;
-  if (!quiz || !currentQ) return <div style={{ textAlign: 'center', marginTop: '4rem' }}>{quiz && !currentQ ? 'No questions found in this quiz.' : 'Loading Quiz...'}</div>;
+  if (error) return <div style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--rose)' }}>{error}</div>;
+  if (!quiz || !currentQ) return <div style={{ textAlign: 'center', marginTop: '4rem', fontFamily: 'var(--font-data)' }}>{quiz && !currentQ ? 'No matrices found.' : 'Compiling Protocol...'}</div>;
 
   const isLowTime = timeLeft <= 15;
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
+    <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '4rem' }}>
       
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{quiz.title}</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Question {currentIdx + 1} of {quiz.mcqs.length}</p>
+          <h1 className="t-h3" style={{ marginBottom: '0.25rem' }}>{quiz.title}</h1>
+          <p className="t-small" style={{ color: 'var(--cyan)' }}>Node {currentIdx + 1} of {quiz.mcqs.length}</p>
         </div>
-        <div 
-          className={`badge ${isLowTime ? 'badge-red' : 'badge-yellow'}`} 
-          style={{ 
-            display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', fontSize: '1.1rem', fontWeight: 'bold',
-            animation: isLowTime ? 'pulse 1s infinite' : 'none'
-          }}
-        >
-          <Clock size={18} /> {formatTimer(timeLeft)}
+        <div style={{ 
+            display: 'flex', alignItems: 'center', gap: '0.5rem', 
+            fontFamily: 'var(--font-data)', fontSize: '14px', 
+            color: isLowTime ? 'var(--rose)' : 'var(--text-primary)',
+            background: 'var(--surface-1)', padding: '0.5rem 1rem',
+            border: `1px solid ${isLowTime ? 'var(--rose)' : 'var(--stroke-2)'}`,
+            position: 'sticky', top: '20px', zIndex: 50
+        }}>
+          <span className={`glow-dot ${isLowTime ? 'rose' : 'cyan'}`}></span>
+          {formatTimer(timeLeft)}
         </div>
       </div>
 
       {/* Progress bar */}
-      <div style={{ width: '100%', height: '4px', background: 'var(--bg-tertiary)', borderRadius: '2px', marginBottom: '1.5rem', overflow: 'hidden' }}>
+      <div style={{ width: '100%', height: '2px', background: 'var(--surface-3)', marginBottom: '2.5rem', overflow: 'hidden' }}>
         <div style={{ 
           width: `${(timeLeft / QUIZ_TIME_LIMIT) * 100}%`, 
           height: '100%', 
-          background: isLowTime ? 'var(--danger)' : 'var(--accent-primary)', 
-          borderRadius: '2px',
+          background: isLowTime ? 'var(--rose)' : 'var(--emerald)', 
           transition: 'width 1s linear'
         }} />
       </div>
 
       {/* Question Card */}
-      <div className="glass-card" style={{ padding: '2.5rem 2rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-           <h2 style={{ fontSize: '1.25rem', lineHeight: 1.5 }}>{currentQ.question}</h2>
+      <div style={{ background: 'var(--surface-0)', padding: '2rem 1.5rem', marginBottom: '2.5rem', border: '2px solid var(--cyan)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+           <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: '600', fontSize: '24px', lineHeight: 1.4, color: 'var(--text-primary)' }}>
+             {currentQ.question}
+           </h2>
            {currentQ.exacttimestamp && (
-             <div className="badge badge-blue" style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} title="Play video at this embedded timestamp">
-                📎 Source {extractStartTime(currentQ.exacttimestamp)}
+             <div className="badge badge-cyan" style={{ whiteSpace: 'nowrap', marginLeft: '1rem' }}>
+               Timestamp // {extractStartTime(currentQ.exacttimestamp)}
              </div>
            )}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {currentQ.options.map((opt) => {
             const isSelected = answers[currentQ._id] === opt.label;
             return (
@@ -172,25 +167,27 @@ export default function QuizTakingPage() {
                 key={opt.label}
                 onClick={() => handleSelect(currentQ._id, opt.label)}
                 style={{
-                  padding: '1rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)',
-                  background: isSelected ? 'rgba(99, 102, 241, 0.1)' : 'var(--bg-tertiary)',
+                  padding: '1.25rem 1.5rem',
+                  border: isSelected ? '1px solid var(--cyan)' : '1px solid var(--stroke-1)',
+                  background: isSelected ? 'rgba(0, 200, 220, 0.1)' : 'var(--surface-1)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '1rem',
-                  transition: 'all 0.2s'
+                  gap: '1.25rem',
+                  transition: 'all 0.2s',
+                  color: isSelected ? 'var(--cyan)' : 'var(--text-primary)'
                 }}
               >
                 <div style={{ 
-                  width: '32px', height: '32px', borderRadius: '50%', 
-                  background: isSelected ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.1)', 
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
+                  width: '24px', height: '24px', 
+                  background: isSelected ? 'var(--cyan)' : 'var(--surface-2)', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  fontFamily: 'var(--font-data)', fontSize: '11px', fontWeight: 'bold',
+                  color: isSelected ? '#000' : 'var(--text-muted)'
                 }}>
                   {opt.label}
                 </div>
-                <span style={{ fontSize: '1.05rem' }}>{opt.text}</span>
+                <span style={{ fontSize: '16px', lineHeight: '1.5' }}>{opt.text}</span>
               </div>
             );
           })}
@@ -204,19 +201,19 @@ export default function QuizTakingPage() {
           onClick={() => setCurrentIdx(prev => Math.max(0, prev - 1))}
           disabled={currentIdx === 0}
         >
-          Previous
+          Previous Node
         </button>
         
         {currentIdx === quiz.mcqs.length - 1 ? (
           <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Calculating Score...' : 'Submit Quiz'}
+            {submitting ? 'Committing...' : 'Commit Evaluation'}
           </button>
         ) : (
           <button 
             className="btn btn-primary" 
             onClick={() => setCurrentIdx(prev => Math.min(quiz.mcqs.length - 1, prev + 1))}
           >
-            Next Question
+            Advance Node
           </button>
         )}
       </div>
