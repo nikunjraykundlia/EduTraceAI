@@ -10,7 +10,13 @@ const n8nClient = axios.create({
  */
 exports.generateQuiz = async (webhookPayload) => {
   try {
-    const response = await n8nClient.post(process.env.N8N_QUIZ_WEBHOOK, webhookPayload);
+    // Ensuring we request 5 MCQs if not specified, matching the target webhook path
+    const payload = {
+      ...webhookPayload,
+      num_mcqs: webhookPayload.num_mcqs || 5
+    };
+
+    const response = await n8nClient.post(process.env.N8N_QUIZ_WEBHOOK_URL, payload);
     // Returning dummy content for now assuming n8n may not be strictly running during initial dev
     if(!response.data || !response.data.success) {
       console.warn('n8n response missing or empty, returning default');

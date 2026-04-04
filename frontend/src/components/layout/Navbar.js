@@ -32,15 +32,17 @@ export default function Navbar() {
               <Link href="/dashboard" className={`nav-item ${pathname === '/dashboard' ? 'active' : ''}`}>
                 Dashboard
               </Link>
-              <Link href="/store" className={`nav-item ${pathname === '/store' ? 'active' : ''}`}>
-                Store
-              </Link>
-              
-
-              <div className="badge badge-amber">
-                <span className="glow-dot amber"></span>
-                {coins} Coins
-              </div>
+              {user.role === 'student' && (
+                <>
+                  <Link href="/store" className={`nav-item ${pathname === '/store' ? 'active' : ''}`}>
+                    Store
+                  </Link>
+                  <div className="badge badge-amber">
+                    <span className="glow-dot amber"></span>
+                    {coins} Coins
+                  </div>
+                </>
+              )}
 
               <Link href="/profile" className="avatar-circle" title="Profile">
                 {getInitials(user.name)}

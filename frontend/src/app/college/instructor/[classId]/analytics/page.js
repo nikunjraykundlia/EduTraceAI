@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Bar, Doughnut } from 'react-chartjs-2';
+import api from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,48 +16,71 @@ import {
   ArcElement
 } from 'chart.js';
 import Link from 'next/link';
+import { Activity, Users, BookOpen, TrendingUp, AlertTriangle } from 'lucide-react';
 
 // Register ChartJS modules
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 export default function AnalyticsDashboard() {
   const { classId } = useParams();
-  const [data, setData] = useState(null);
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const [analytics, setAnalytics] = useState(null);
+  const [classroom, setClassroom] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    // Mock analytics fetch
-    setData({
-      className: 'CS101: Intro to React',
-      averageScore: 78,
-      totalStudents: 24,
-      completionRate: 85,
-      studentScores: [
-        { name: 'Alice', avgScore: 92, completedQuizzes: 4 },
-        { name: 'Bob', avgScore: 65, completedQuizzes: 3 },
-        { name: 'Charlie', avgScore: 88, completedQuizzes: 4 },
-        { name: 'Diana', avgScore: 45, completedQuizzes: 1 },
-      ],
-      quizAverages: [
-        { label: 'React State', avg: 82 },
-        { label: 'Hooks Deep Dive', avg: 71 },
-        { label: 'Context API', avg: 65 },
-        { label: 'Next.js Routing', avg: 90 }
-      ]
-    });
-    setLoading(false);
-  }, [classId]);
+    if (!authLoading && (!user || user.role !== 'instructor')) {
+      router.push('/dashboard');
+    }
 
-  if (loading || !data) return <div style={{ textAlign: 'center', marginTop: '4rem' }}>Loading Analytics...</div>;
+    const fetchAnalytics = async () => {
+      try {
+        const [analyticsRes, classroomRes] = await Promise.all([
+          api.get(`/classroom/${classId}/analytics`),
+          api.get(`/classroom/${classId}`)
+        ]);
+
+        if (analyticsRes.data.success) {
+          setAnalytics(analyticsRes.data.analytics);
+        }
+        if (classroomRes.data.success) {
+          setClassroom(classroomRes.data.classroom);
+        }
+      } catch (err) {
+        console.error('Error fetching analytics:', err);
+        setError('FAILED TO RETRIEVE TELEMETRY DATA.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user && user.role === 'instructor') {
+      fetchAnalytics();
+    }
+  }, [classId, user, authLoading, router]);
+
+  if (loading || authLoading) return (
+    <div style={{ textAlign: 'center', marginTop: '10rem', fontFamily: 'var(--font-data)' }}>
+      <div className="animate-pulse" style={{ color: 'var(--cyan)', fontSize: '1.5rem', letterSpacing: '0.2em' }}>QUERYING NODE DATA...</div>
+    </div>
+  );
+
+  if (error) return <div style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--rose)', fontFamily: 'var(--font-data)' }}>{error}</div>;
+
+  const hasData = analytics && (analytics.totalStudents > 0 || analytics.totalQuizzes > 0);
 
   const barChartData = {
-    labels: data.quizAverages.map(q => q.label),
+    labels: analytics?.quizAverages?.map(q => q.label) || ['No Data'],
     datasets: [
       {
         label: 'Average Score (%)',
-        data: data.quizAverages.map(q => q.avg),
-        backgroundColor: 'rgba(99, 102, 241, 0.8)',
-        borderRadius: 4
+        data: analytics?.quizAverages?.map(q => q.avg) || [0],
+        backgroundColor: 'rgba(0, 200, 220, 0.4)',
+        borderColor: 'var(--cyan)',
+        borderWidth: 1,
+        borderRadius: 2
       }
     ]
   };
@@ -64,9 +89,10 @@ export default function AnalyticsDashboard() {
     labels: ['Completed', 'Pending'],
     datasets: [
       {
-        data: [data.completionRate, 100 - data.completionRate],
-        backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(55, 65, 81, 0.5)'],
-        borderWidth: 0
+        data: [analytics?.completionRate || 0, 100 - (analytics?.completionRate || 0)],
+        backgroundColor: ['rgba(16, 185, 129, 0.6)', 'rgba(55, 65, 81, 0.3)'],
+        borderColor: ['var(--emerald)', 'transparent'],
+        borderWidth: 1
       }
     ]
   };
@@ -75,92 +101,135 @@ export default function AnalyticsDashboard() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom', labels: { color: '#a1a1aa' } }
+      legend: { position: 'bottom', labels: { color: 'var(--text-secondary)', font: { family: 'var(--font-data)', size: 10 } } }
     },
     scales: {
-      y: { ticks: { color: '#a1a1aa' }, grid: { color: 'rgba(255, 255, 255, 0.05)' }, max: 100 },
-      x: { ticks: { color: '#a1a1aa' }, grid: { display: false } }
+      y: { ticks: { color: 'var(--text-muted)', font: { family: 'var(--font-data)' } }, grid: { color: 'rgba(255, 255, 255, 0.03)' }, max: 100 },
+      x: { ticks: { color: 'var(--text-muted)', font: { family: 'var(--font-data)' } }, grid: { display: false } }
     }
   };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="animate-fade-in" style={{ maxWidth: '1100px', margin: '0 auto', paddingBottom: '5rem' }}>
       
-      <div style={{ marginBottom: '2rem' }}>
-        <Link href={`/college/instructor`} style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem', display: 'inline-block' }}>&larr; Back to Dashboard</Link>
-        <h1 className="page-title" style={{ fontSize: '2rem' }}>Analytics: {data.className}</h1>
-        <p className="page-description">Actionable insights into student performance and material difficulty.</p>
+      <div style={{ marginBottom: '3rem', borderLeft: '4px solid var(--cyan)', paddingLeft: '1.5rem' }}>
+        <Link href={`/college/instructor/${classId}`} style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '500' }}>
+          &larr; BACK TO HUB
+        </Link>
+        <h1 className="t-h2" style={{ fontSize: '2.5rem', letterSpacing: '-0.02em' }}>TELEMETRY: {classroom?.name}</h1>
+        <p className="t-small" style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Real-time evaluation of student nodes and learning efficiency.</p>
       </div>
 
-      {/* Top Metrics */}
-      <div className="grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: '2rem' }}>
-        <div className="glass-card" style={{ textAlign: 'center' }}>
-          <h3 style={{ fontSize: '2rem', color: 'var(--success)', marginBottom: '0.25rem' }}>{data.averageScore}%</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Class Average Score</p>
+      {!hasData ? (
+        <div className="glass-panel" style={{ textAlign: 'center', padding: '5rem 2rem', border: '1px solid var(--stroke-2)', borderRadius: 'var(--radius-lg)' }}>
+           <Activity size={48} color="var(--text-muted)" style={{ margin: '0 auto 1.5rem', opacity: 0.3 }} />
+           <h3 className="t-h4" style={{ marginBottom: '1rem' }}>NO TELEMETRY RECORED</h3>
+           <p className="t-small" style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto' }}>
+             Deploy evaluation matrices (quizzes) to begin synthesizing performance data. Currently, there are no recorded attempts for this classroom.
+           </p>
         </div>
-        <div className="glass-card" style={{ textAlign: 'center' }}>
-          <h3 style={{ fontSize: '2rem', color: 'var(--accent-primary)', marginBottom: '0.25rem' }}>{data.totalStudents}</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Total Students Enrolled</p>
-        </div>
-        <div className="glass-card" style={{ textAlign: 'center' }}>
-          <h3 style={{ fontSize: '2rem', color: 'var(--coin-gold)', marginBottom: '0.25rem' }}>{data.completionRate}%</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Assignment Completion</p>
-        </div>
-      </div>
+      ) : (
+        <>
+          {/* Top Metrics */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '4px solid var(--emerald)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <TrendingUp size={20} className="text-success" />
+                <span className="t-label" style={{ fontSize: '10px' }}>AVG PERFORMANCE</span>
+              </div>
+              <h3 style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-primary)', fontFamily: 'var(--font-data)' }}>{analytics.averageClassScore}%</h3>
+            </div>
+            
+            <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '4px solid var(--cyan)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <Users size={20} className="text-accent" />
+                <span className="t-label" style={{ fontSize: '10px' }}>ACTIVE NODES</span>
+              </div>
+              <h3 style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-primary)', fontFamily: 'var(--font-data)' }}>{analytics.totalStudents}</h3>
+            </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginBottom: '2rem', alignItems: 'start' }}>
-        
-        {/* Bar Chart */}
-        <div className="glass-card" style={{ height: '350px' }}>
-           <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>Quiz Performance Trend</h3>
-           <div style={{ position: 'relative', height: '80%' }}>
-              <Bar data={barChartData} options={chartOptions} />
-           </div>
-        </div>
+            <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '4px solid var(--cyan)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <BookOpen size={20} style={{ color: 'var(--cyan)' }} />
+                <span className="t-label" style={{ fontSize: '10px' }}>DEPLOYED MATRICES</span>
+              </div>
+              <h3 style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--text-primary)', fontFamily: 'var(--font-data)' }}>{analytics.totalQuizzes}</h3>
+            </div>
+          </div>
 
-        {/* Doughnut Chart */}
-        <div className="glass-card" style={{ height: '350px', display: 'flex', flexDirection: 'column' }}>
-           <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem', textAlign: 'center' }}>Completion Rate</h3>
-           <div style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center' }}>
-              <Doughnut data={doughnutData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#a1a1aa' } } } }} />
-           </div>
-        </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', marginBottom: '3rem' }}>
+            {/* Main Trend */}
+            <div className="glass-panel" style={{ padding: '2rem', borderRadius: 'var(--radius-lg)' }}>
+               <h3 className="t-label" style={{ marginBottom: '2rem', color: 'var(--cyan)' }}>EVALUATION TRENDS</h3>
+               <div style={{ height: '300px' }}>
+                  <Bar data={barChartData} options={chartOptions} />
+               </div>
+            </div>
 
-      </div>
+            {/* Distribution */}
+            <div className="glass-panel" style={{ padding: '2rem', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column' }}>
+               <h3 className="t-label" style={{ marginBottom: '2rem', color: 'var(--emerald)', textAlign: 'center' }}>COMPLETION MATRIX</h3>
+               <div style={{ flex: 1, position: 'relative' }}>
+                  <Doughnut data={doughnutData} options={{ maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: 'var(--text-muted)', font: { family: 'var(--font-data)', size: 9 } } } } }} />
+               </div>
+            </div>
+          </div>
 
-      {/* Student List */}
-      <div className="glass-card">
-        <h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Student Performance Breakdown</h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-              <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>Student Name</th>
-              <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>Completed Quizzes</th>
-              <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>Average Score</th>
-              <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.studentScores.map((student, idx) => (
-              <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <td style={{ padding: '1rem' }}>{student.name}</td>
-                <td style={{ padding: '1rem' }}>{student.completedQuizzes} / 4</td>
-                <td style={{ padding: '1rem', fontWeight: 'bold', color: student.avgScore >= 70 ? 'var(--success)' : 'var(--danger)' }}>
-                   {student.avgScore}%
-                </td>
-                <td style={{ padding: '1rem' }}>
-                   {student.avgScore < 60 ? (
-                      <span className="badge badge-red">Needs Attention</span>
-                   ) : (
-                      <span className="badge badge-green">On Track</span>
-                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          {/* Student Breakdown */}
+          <div className="glass-panel" style={{ padding: '0', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--stroke-1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 className="t-label" style={{ color: 'var(--text-primary)' }}>NODE PERFORMANCE BREAKDOWN</h3>
+              <div className="badge badge-cyan" style={{ fontSize: '10px' }}>{analytics.studentPerformance?.length || 0} RECORDS</div>
+            </div>
+            
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--stroke-1)' }}>
+                  <th style={{ padding: '1.25rem 1.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem', letterSpacing: '0.1em' }}>NODE IDENTIFIER</th>
+                  <th style={{ padding: '1.25rem 1.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem', letterSpacing: '0.1em' }}>EXECUTIONS</th>
+                  <th style={{ padding: '1.25rem 1.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem', letterSpacing: '0.1em' }}>AVG SCORE</th>
+                  <th style={{ padding: '1.25rem 1.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem', letterSpacing: '0.1em' }}>STATUS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analytics.studentPerformance?.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-data)' }}>NO PERFORMANCE LOGS DETECTED.</td>
+                  </tr>
+                ) : (
+                  analytics.studentPerformance.map((student, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--stroke-1)', transition: 'background 0.2s' }}>
+                      <td style={{ padding: '1.25rem 1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', color: 'var(--cyan)' }}>
+                             {student.name.charAt(0)}
+                           </div>
+                           <span style={{ fontWeight: '500' }}>{student.name}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '1.25rem 1.5rem', fontFamily: 'var(--font-data)', color: 'var(--text-secondary)' }}>
+                        {student.completedQuizzes} / {analytics.totalQuizzes}
+                      </td>
+                      <td style={{ padding: '1.25rem 1.5rem', fontFamily: 'var(--font-data)', fontWeight: 'bold', color: student.avgScore >= 70 ? 'var(--emerald)' : student.avgScore >= 40 ? 'var(--coin-gold)' : 'var(--rose)' }}>
+                        {student.avgScore}%
+                      </td>
+                      <td style={{ padding: '1.25rem 1.5rem' }}>
+                        {student.avgScore < 50 ? (
+                           <span className="badge badge-red" style={{ fontSize: '10px' }}>REMEDIATION REQUIRED</span>
+                        ) : (
+                           <span className="badge badge-green" style={{ fontSize: '10px' }}>NOMINAL</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
     </div>
   );
 }
+

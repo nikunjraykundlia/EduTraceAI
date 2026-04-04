@@ -12,7 +12,9 @@ const {
   publishQuiz,
   getStudentClasses,
   getClassroomQuizzes,
-  getClassroomAnalytics
+  getClassroomAnalytics,
+  deleteQuiz,
+  deleteClassroom
 } = require('../controllers/classroom');
 
 // Instructor routes
@@ -22,7 +24,9 @@ router.post('/:classroomId/video', protect, instructorAuth, addVideoToClassroom)
 router.put('/:classroomId/video/:videoId/transcript', protect, instructorAuth, verifyTranscript);
 router.post('/:classroomId/generate-quiz', protect, instructorAuth, generateClassroomQuiz);
 router.put('/:classroomId/quiz/:quizId/publish', protect, instructorAuth, publishQuiz);
+router.delete('/:classroomId/quiz/:quizId', protect, instructorAuth, deleteQuiz);
 router.get('/:classroomId/analytics', protect, instructorAuth, getClassroomAnalytics);
+router.delete('/:classroomId', protect, instructorAuth, deleteClassroom);
 
 // Student routes
 router.post('/join', protect, joinClassroom);

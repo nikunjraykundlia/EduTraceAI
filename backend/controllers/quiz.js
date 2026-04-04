@@ -14,14 +14,17 @@ exports.startQuizAttempt = async (req, res) => {
     
     if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
 
-    // Check if user already has a completed attempt for this quiz
+    // Instructors can always preview the quiz regardless of completion status
+    const isInstructor = req.user.role === 'instructor';
+
+    // Check if user already has a completed attempt for this quiz (Students only)
     const existingCompleted = await QuizAttempt.findOne({
       quizId,
       studentId: req.user.id,
       status: 'completed'
     });
 
-    if (existingCompleted) {
+    if (existingCompleted && !isInstructor) {
       return res.status(200).json({
         success: true,
         alreadyCompleted: true,
@@ -45,15 +48,17 @@ exports.startQuizAttempt = async (req, res) => {
       });
     }
 
-    // Remove correct answers from the quiz payload sent to student
+    // Remove correct answers from the quiz payload sent to student (but not instructor)
     const safeQuiz = quiz.toObject();
-    safeQuiz.mcqs.forEach(q => {
-      delete q.correctAnswer;
-      delete q.explanation;
-    });
-    safeQuiz.shortAnswerQuestions.forEach(q => {
-      delete q.expectedAnswer;
-    });
+    if (req.user.role === 'student') {
+      safeQuiz.mcqs.forEach(q => {
+        delete q.correctAnswer;
+        delete q.explanation;
+      });
+      safeQuiz.shortAnswerQuestions.forEach(q => {
+        delete q.expectedAnswer;
+      });
+    }
 
     res.status(200).json({
       success: true,

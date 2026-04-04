@@ -1,169 +1,127 @@
 # 🎓 EduTrace AI - Elevating Learning with AI Precision
 
-## Deployed Link: [View Project](https://edutrace-ai.onrender.com/)
+## Deployed Link: [View Live Demo](https://edutrace-ai.onrender.com/)
 
-<img src="./frontend/public/hero.png" alt="Hero Image" width="400" height="200">
+![EduTrace AI Hero](./frontend/public/hero.png)
 
-> **Transforming YouTube videos into interactive learning experiences.**
+> **"Transforming passive YouTube watching into an active, data-driven learning experience."**
 
-EduTrace AI is a next-generation educational platform that leverages Artificial Intelligence to bridge the gap between passive video watching and active learning. By processing YouTube content, it generates comprehensive transcripts, summarizes complex topics, creates interactive MCQs, and provides an AI-driven doubt resolver to ensure every student masters their subjects.
+EduTrace AI is a state-of-the-art educational ecosystem that leverages Artificial Intelligence to bridge the gap between video content and mastery. By processing YouTube lectures, it generates precision transcripts, smart summaries, AI-verified MCQs, and provides an interactive AI doubt resolver—all wrapped in a premium, cinematic user interface.
 
 ---
 
 ## ✨ Key Features
 
-### 🎥 Intelligent Video Processing
-- **Auto-Transcription**: Seamlessly extract high-quality transcripts from any YouTube video.
-- **Smart Summarization**: Get the gist of long lectures in seconds with AI-generated notes.
+### 🎥 Cinematic Learning Experience
+- **16:9 Instructor Layout**: A professional, distraction-free viewing experience optimized for educational content.
+- **Auto-Scrolling Transcripts**: Synchronized transcripts that follow the video playback in real-time.
+- **Auto-Transcription**: High-fidelity extraction of transcripts from any YouTube video via advanced APIs.
+- **Smart Summarization**: AI-generated notes that distill complex lectures into actionable insights.
 
-### 📝 Interactive Assessments
-- **AI Quiz Generation**: Automatically generates context-aware Multiple Choice Questions based on the video transcript.
-- **Instant Grading**: Get immediate feedback and performance analytics after completing tests.
+### 📝 Intelligent Assessment System
+- **AI-Powered MCQ Generation**: Context-aware quizzes generated directly from the video content using n8n workflows.
+- **One-Attempt Policy**: Strict validation for published quizzes in College Mode to ensure academic integrity.
+- **Instant Analytics**: Real-time grading with detailed performance breakdowns and confidence scores.
+
+### 🏛️ Classroom & College Ecosystem
+- **Instructor Dashboard**: Tools for creating classrooms, uploading videos, managing quizzes, and tracking student performance.
+- **Student Portal**: Join classrooms via unique codes, track progress across subjects, and earn rewards.
+- **Analytics & Tracking**: Comprehensive dashboards for instructors to monitor class-wide completion rates and average scores.
 
 ### 💬 AI Doubt Resolver
-- **Contextual Chat**: Ask questions directly related to the video content and get instant, accurate answers from our AI tutor.
+- **Contextual Chat**: Ask questions directly related to the video content and get immediate answers from our AI-driven tutor.
+- **Session Persistence**: Keep track of your learning queries and revisit AI explanations anytime.
 
-### 🎮 Gamified Learning (Rewards System)
-- **Earn Coins**: Students earn virtual currency for completing quizzes and participating in learning activities.
-- **Item Store**: Exchange earned coins for exclusive rewards or platform perks.
+### 🎮 Gamified Motivation
+- **Rewards System**: Earn coins for every quiz completed and milestone reached.
+- **Marketplace**: Exchange earned coins for exclusive platform perks and digital assets.
 
-### � Multi-Language Support
-- **Hindi Language PDF Generation**: Full support for Hindi text in transcript PDFs using Noto Sans Devanagari fonts
-- **Automatic Language Detection**: System automatically detects Hindi characters (Unicode range \u0900-\u097F) and applies appropriate fonts
-- **Mixed Content Support**: Seamlessly handles transcripts with both Hindi and English content
-- **Font Fallback**: Robust error handling with fallback to default fonts if Hindi fonts fail to load
-
-### � College & Personal Modes
-- **Personal Mode**: Track your individual progress and learning journey.
-- **College Mode**: Join classrooms, participate in group tests, and collaborate with peers and instructors.
+### 🌍 Universal Accessibility (Hindi Support)
+- **Devanagari Precision**: Full support for Hindi text (Unicode range \u0900-\u097F) in transcripts and PDF exports.
+- **Mixed Content Handling**: Seamlessly process and render bilingual (Hindi/English) educational material.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Technical Architecture
 
-### Frontend
-- **Framework**: [Next.js](https://nextjs.org/) (React 19.2.3)
-- **Styling**: Vanilla CSS & Tailwind CSS
-- **Animations**: [Framer Motion](https://www.framer.com/motion/) v12.36.0
-- **Icons**: [Lucide React](https://lucide.dev/) v0.577.0
-- **Charts**: Chart.js v4.5.1 & React-Chartjs-2 v5.3.1
-- **Additional**: React Markdown, React YouTube, HTML2Canvas, Axios, js-cookie, clsx, tailwind-merge
+### **Frontend**
+- **Core**: Next.js 16 (App Router), React 19
+- **Styling**: Tailwind CSS 4 (Modern Utility-First Styles)
+- **Animations**: Framer Motion 12 (Premium Micro-interactions)
+- **Visuals**: Three.js & WebGL (High-performance backgrounds)
+- **State Management**: React Hooks & Context API
+- **Networking**: Axios with Interceptors
 
-### Backend
-- **Runtime**: Node.js
-- **Web Framework**: Express.js (v5.2.1)
-- **Database**: MongoDB (Mongoose v9.3.0)
-- **Authentication**: JWT & Bcrypt.js v3.0.3
-- **PDF Generation**: PDFKit v0.17.2
-- **Font Support**: @fontsource/noto-sans-devanagari v5.2.8 (Hindi language support)
-- **Validation**: Express-validator v7.3.1
-- **Additional**: Axios, CORS, Helmet, Morgan, FFmpeg-static, Form-data, dotenv
+### **Backend**
+- **Runtime**: Node.js (High-performance event loop)
+- **API Framework**: Express.js 5 (Modular Controller Pattern)
+- **Database**: MongoDB with Mongoose 9.3.0
+- **Security**: JWT Authentication, Bcryptjs 3.0, Helmet, CORS
+- **Media Processing**: FFmpeg-static, PDFKit (for Hindi-ready exports)
 
-### AI & Automation
-- **Transcript API**: SERP API for YouTube transcript extraction
-- **Workflow Engine**: [n8n](https://n8n.io/) for AI-powered content generation
-- **AI Processing**: Automated quiz generation, summarization, and doubt resolution
+### **AI & Orchestration**
+- **Workflow Engine**: [n8n](https://n8n.io/) for complex AI logic routing.
+- **LLM Integration**: Automated quiz generation and summarization services.
+- **Data Acquisition**: SERP API for real-time YouTube transcript harvesting.
 
 ---
 
-## 🔌 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-
-### Video Processing
-- `POST /api/transcribe` - Process YouTube video and generate transcript
-- `GET /api/transcribe/:videoId` - Get transcript for a video
-- `POST /api/transcribe/pdf` - Generate PDF transcript (with Hindi support)
-
-### Quiz System
-- `POST /api/quiz/generate` - Generate quiz from transcript
-- `POST /api/quiz/submit` - Submit quiz attempt
-- `GET /api/quiz/:quizId` - Get quiz details
-
-### AI Chat
-- `POST /api/chat` - Send message to AI tutor
-- `GET /api/chat/history/:sessionId` - Get chat history
-
-### Classroom Management
-- `POST /api/classroom/create` - Create classroom
-- `POST /api/classroom/join` - Join classroom
-- `GET /api/classroom/:id` - Get classroom details
-
-### Rewards System
-- `GET /api/coins/balance` - Get user coin balance
-- `POST /api/coins/earn` - Earn coins from activities
-- `GET /api/store/items` - Get available store items
-- `POST /api/store/purchase` - Purchase items with coins
-
----
-
-## 🚀 Getting Started
+## 🚀 Local Implementation Guide
 
 ### Prerequisites
-- Node.js (v18+)
-- MongoDB Atlas or Local instance
-- SERP API key for YouTube transcript extraction
-- n8n instance (for AI workflow automation)
+- Node.js (v18.x or higher)
+- MongoDB (Local or Atlas instance)
+- API Keys: SERP API, n8n Webhook URLs
 
-### Installation
+### Step 1: Clone & Install
+```bash
+git clone https://github.com/Hackverse2k26/edutech-we08_ai_bytes.git
+cd EduTrace-AI
+```
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/Hackverse2k26/edutech-we08_ai_bytes.git
-   cd EduTrace-AI
-   ```
+### Step 2: Backend Configuration
+```bash
+cd backend
+npm install
+# Configure your .env file
+npm run dev
+```
 
-2. **Backend Setup**
-   ```bash
-   cd backend
-   npm install
-   # Create a .env file based on the Environment Variables section below
-   npm run dev
-   ```
-
-3. **Frontend Setup**
-   ```bash
-   cd ../frontend
-   npm install
-   npm run dev
-   ```
-
-4. **Font Setup (Hindi Support)**
-   - Hindi fonts (Noto Sans Devanagari) are automatically installed via npm
-   - Font files are located in `node_modules/@fontsource/noto-sans-devanagari/files/`
-   - No additional configuration required - fonts are registered automatically in the PDF generation system
+### Step 3: Frontend Deployment
+```bash
+cd ../frontend
+npm install
+# Set NEXT_PUBLIC_API_URL in .env.local
+npm run dev
+```
 
 ---
 
-## 🔐 Environment Variables
+## 🔐 Environment Configuration
 
-### Backend (`/backend/.env`)
-| Variable | Description |
+### Backend Variable Map (`/backend/.env`)
+| Variable | Purpose |
 | :--- | :--- |
-| `PORT` | Server port (default: 5000) |
-| `MONGODB_URI` | Your MongoDB connection string |
-| `JWT_SECRET` | Secret key for token generation |
-| `SERP_API_KEY` | SERP API key for YouTube transcript extraction |
-| `N8N_CHAT_WEBHOOK` | n8n webhook for chat/doubt resolution |
-| `N8N_TRANSCRIPTION_WEBHOOK` | n8n webhook for transcription processing |
-| `N8N_QUIZ_WEBHOOK_URL` | n8n webhook for quiz generation |
+| `MONGODB_URI` | Database Connection String |
+| `JWT_SECRET` | Authentication Signature Key |
+| `SERP_API_KEY` | YouTube Metadata Extraction |
+| `N8N_CHAT_WEBHOOK` | Doubt Resolver Endpoint |
+| `IMAGEKIT_PRIVATE_KEY` | Media Storage Credentials |
 
-### Frontend (`/frontend/.env.local`)
-| Variable | Description |
+### Frontend Variable Map (`/frontend/.env.local`)
+| Variable | Purpose |
 | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | Backend API URL (default: http://localhost:5000) |
+| `NEXT_PUBLIC_API_URL` | Base Backend API URL |
 
 ---
 
-## 🔄 Recent Updates
-
-### ✅ Version 2.0 Features
-- **Hindi Language Support**: Complete Devanagari script support in PDF generation
-- **Multi-Language Content**: Support for mixed Hindi/English transcripts
+## 🔄 Recent Changelog (v2.1.0)
+- **Added**: Instructor Video Upload & Management.
+- **Enhanced**: Cinematic 16:9 layout for the student classroom view.
+- **Integrated**: Strict "One-Attempt" quiz validation logic.
+- **Optimized**: Tailwind CSS 4 migration for improved performance.
+- **Fixed**: Hindi font rendering in high-density PDF exports.
 
 ---
 
-> **🎓 EduTrace AI - Making education accessible, interactive, and intelligent.**
+> **🎓 EduTrace AI - Redefining the boundaries of digital education through AI.**

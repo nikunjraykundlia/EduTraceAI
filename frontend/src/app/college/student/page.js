@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Search, UserPlus, FileText, CheckCircle, Clock } from 'lucide-react';
+import { Search, UserPlus, FileText, CheckCircle, Clock, Link2 } from 'lucide-react';
 import Link from 'next/link';
 import Modal from '@/components/ui/Modal';
 import api from '@/lib/api';
@@ -56,6 +56,11 @@ export default function StudentDashboard() {
     }
   };
 
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  };
+
   if (loading || !user) return <div style={{ textAlign: 'center', marginTop: '4rem', fontFamily: 'var(--font-data)' }}>Initializing Node Uplink...</div>;
 
   return (
@@ -67,7 +72,7 @@ export default function StudentDashboard() {
           <p className="t-small" style={{ color: 'var(--text-secondary)' }}>Access enrolled sync nodes and execute pending evaluations.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setIsModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <UserPlus size={18} /> Sync to Node
+          <UserPlus size={18} /> Join Classroom
         </button>
       </div>
 
@@ -90,54 +95,92 @@ export default function StudentDashboard() {
             <div key={cls._id} style={{ 
               display: 'flex', 
               flexDirection: 'column', 
-              background: 'var(--surface-1)', 
+              background: 'rgba(255, 255, 255, 0.02)', 
               border: '1px solid var(--stroke-2)', 
-              borderRadius: 'var(--radius-card)', 
-              padding: '1.5rem',
-              transition: 'all 0.2s'
+              borderRadius: 'var(--radius-lg)', 
+              padding: '2rem',
+              transition: 'all 0.2s',
+              position: 'relative'
             }}>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', marginBottom: '0.25rem', color: 'var(--text-primary)' }}>{cls.name}</h2>
-              <p style={{ fontFamily: 'var(--font-data)', fontSize: '11px', color: 'var(--cyan)', textTransform: 'uppercase', marginBottom: '1.5rem' }}>Supervisor: {cls.instructorId?.name || 'Unknown'}</p>
+              {/* Initials Logo */}
+              <div style={{ 
+                fontFamily: 'var(--font-display)', 
+                fontSize: '28px', 
+                fontWeight: '900', 
+                color: 'var(--text-primary)',
+                marginBottom: '0.5rem',
+                letterSpacing: '-1px'
+              }}>
+                {getInitials(cls.instructorId?.name || 'Dr. Professor')}
+              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ background: 'var(--surface-0)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--stroke-1)', textAlign: 'center' }}>
-                  <Clock size={16} color="var(--yellow)" style={{ margin: '0 auto 0.5rem' }} />
-                  <span style={{ fontFamily: 'var(--font-display)', display: 'block', fontSize: '24px', fontWeight: 'bold' }}>{cls.quizzes?.length || 0}</span>
-                  <span style={{ fontFamily: 'var(--font-data)', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Pending Arrays</span>
+              <p style={{ 
+                fontFamily: 'var(--font-data)', 
+                fontSize: '11px', 
+                color: 'var(--cyan)', 
+                textTransform: 'uppercase', 
+                marginBottom: '2rem',
+                letterSpacing: '0.1em',
+                fontWeight: '700'
+              }}>
+                SUPERVISOR: <span style={{ color: 'var(--cyan)' }}>{cls.instructorId?.name || 'Unknown'}</span>
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '2rem' }}>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--stroke-1)', textAlign: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', display: 'block', fontSize: '28px', fontWeight: '900', marginBottom: '0.5rem' }}>{cls.stats?.pending || 0}</span>
+                  <span style={{ fontFamily: 'var(--font-data)', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>Pending</span>
                 </div>
-                <div style={{ background: 'var(--surface-0)', padding: '1.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--stroke-1)', textAlign: 'center' }}>
-                  <CheckCircle size={16} color="var(--emerald)" style={{ margin: '0 auto 0.5rem' }} />
-                  <span style={{ fontFamily: 'var(--font-display)', display: 'block', fontSize: '24px', fontWeight: 'bold' }}>0</span>
-                  <span style={{ fontFamily: 'var(--font-data)', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Executed</span>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1.5rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--stroke-1)', textAlign: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', display: 'block', fontSize: '28px', fontWeight: '900', marginBottom: '0.5rem' }}>{cls.stats?.completed || 0}</span>
+                  <span style={{ fontFamily: 'var(--font-data)', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>Executed</span>
                 </div>
               </div>
 
-              <Link href={`/college/student/${cls._id}`} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                Access Matrix
+              <Link href={`/college/student/${cls._id}`} className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', height: '48px', fontSize: '14px' }}>
+                Access Classroom
               </Link>
             </div>
           ))
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Establish Node Sync">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Establish Node Uplink">
         <form onSubmit={handleJoinClass}>
           <div className="input-group">
-            <label className="input-label" style={{ fontFamily: 'var(--font-data)', textTransform: 'uppercase', fontSize: '11px', color: 'var(--text-secondary)' }}>Node authentication key</label>
-            <input
-              type="text"
-              className="input-field"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-              placeholder="e.g. ABCD-1234"
-              required
-              style={{ fontFamily: 'var(--font-data)' }}
-            />
+            <label className="input-label">Cryptographic Join Key</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                className="input-field mono"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                placeholder="e.g. XXXX-XXXX-XXXX"
+                required
+                style={{ textAlign: 'center', letterSpacing: '0.2em', textTransform: 'uppercase', fontSize: '1.1rem', padding: '1.25rem' }}
+              />
+              <div style={{ position: 'absolute', right: '1.25rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.3 }}>
+                <Link2 size={18} />
+              </div>
+            </div>
           </div>
-          <p style={{ fontFamily: 'var(--font-data)', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-            Input the specific cryptographic identifier assigned by your instructor to establish authorization.
-          </p>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', fontFamily: 'var(--font-data)', textTransform: 'uppercase' }}>Initialize Sync</button>
+          
+          <div style={{ 
+            background: 'rgba(79, 110, 247, 0.05)', 
+            border: '1px solid rgba(79, 110, 247, 0.1)', 
+            borderRadius: 'var(--radius-input)', 
+            padding: '1rem', 
+            marginBottom: '2rem',
+            textAlign: 'center'
+          }}>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+              Input the specific cryptographic identifier assigned by your instructor to establish authorization and synchronize with the classroom Hub.
+            </p>
+          </div>
+
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', height: '52px', fontSize: '14px', letterSpacing: '0.05em' }}>
+            AUTHORIZE CLASSROOM
+          </button>
         </form>
       </Modal>
 

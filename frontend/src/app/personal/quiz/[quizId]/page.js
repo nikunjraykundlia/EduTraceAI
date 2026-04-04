@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
-const QUIZ_TIME_LIMIT = 60; // seconds
+const QUIZ_TIME_LIMIT = 300; // 5 minutes standard
 
 const extractStartTime = (timestamp) => {
   if (!timestamp) return '';
+  if (typeof timestamp !== 'string') return '';
   if (timestamp.includes('-')) {
     return timestamp.split('-')[0].trim();
   }
@@ -18,6 +19,7 @@ const extractStartTime = (timestamp) => {
 export default function QuizTakingPage() {
   const { quizId } = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const [quiz, setQuiz] = useState(null);
   const [attemptId, setAttemptId] = useState(null);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -28,7 +30,10 @@ export default function QuizTakingPage() {
   const timerRef = useRef(null);
   const hasAutoSubmitted = useRef(false);
 
+  const isInstructor = user?.role === 'instructor';
+
   const doSubmit = useCallback(async (currentAnswers, currentAttemptId) => {
+    if (isInstructor) return; // Instructors don't submit
     if (submitting || hasAutoSubmitted.current) return;
     hasAutoSubmitted.current = true;
     setSubmitting(true);
@@ -48,19 +53,23 @@ export default function QuizTakingPage() {
       setSubmitting(false);
       hasAutoSubmitted.current = false;
     }
-  }, [quizId, router, submitting]);
+  }, [quizId, router, submitting, isInstructor]);
 
   useEffect(() => {
     const startQuiz = async () => {
       try {
         const res = await api.post(`/quiz/${quizId}/start`);
         if (res.data.success) {
-          if (res.data.alreadyCompleted) {
+          if (res.data.alreadyCompleted && !isInstructor) {
             router.replace(`/personal/quiz/${quizId}/results?attemptId=${res.data.attemptId}`);
             return;
           }
-          setQuiz(res.data.attempt.quiz);
-          setAttemptId(res.data.attempt.attemptId);
+          if (res.data.attempt) {
+            setQuiz(res.data.attempt.quiz);
+            setAttemptId(res.data.attempt.attemptId);
+          } else if (!res.data.alreadyCompleted) {
+             setError('Protocol initialization failed: attempt logic missing.');
+          }
         }
       } catch (err) {
         console.error(err);
@@ -68,10 +77,10 @@ export default function QuizTakingPage() {
       }
     };
     startQuiz();
-  }, [quizId, router]);
+  }, [quizId, router, isInstructor]);
 
   useEffect(() => {
-    if (!quiz || !attemptId) return;
+    if (!quiz || !attemptId || isInstructor) return;
 
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
@@ -84,21 +93,23 @@ export default function QuizTakingPage() {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [quiz, attemptId]);
+  }, [quiz, attemptId, isInstructor]);
 
   useEffect(() => {
-    if (timeLeft === 0 && attemptId && !hasAutoSubmitted.current) {
+    if (timeLeft === 0 && attemptId && !hasAutoSubmitted.current && !isInstructor) {
       doSubmit(answers, attemptId);
     }
-  }, [timeLeft, attemptId, answers, doSubmit]);
+  }, [timeLeft, attemptId, answers, doSubmit, isInstructor]);
 
   const currentQ = quiz?.mcqs[currentIdx];
 
   const handleSelect = (questionId, label) => {
+    if (isInstructor) return; // Prevent selection for instructors
     setAnswers({ ...answers, [questionId]: label });
   };
 
   const handleSubmit = () => {
+    if (isInstructor) return;
     clearInterval(timerRef.current);
     doSubmit(answers, attemptId);
   };
@@ -121,33 +132,40 @@ export default function QuizTakingPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem' }}>
         <div>
           <h1 className="t-h3" style={{ marginBottom: '0.25rem' }}>{quiz.title}</h1>
-          <p className="t-small" style={{ color: 'var(--cyan)' }}>Node {currentIdx + 1} of {quiz.mcqs.length}</p>
+          <p className="t-small" style={{ color: 'var(--cyan)' }}>
+            Node {currentIdx + 1} of {quiz.mcqs.length} 
+            {isInstructor && <span style={{ marginLeft: '1rem', color: 'var(--emerald)', fontWeight: 'bold' }}>[TEACHER PREVIEW]</span>}
+          </p>
         </div>
-        <div style={{ 
-            display: 'flex', alignItems: 'center', gap: '0.5rem', 
-            fontFamily: 'var(--font-data)', fontSize: '14px', 
-            color: isLowTime ? 'var(--rose)' : 'var(--text-primary)',
-            background: 'var(--surface-1)', padding: '0.5rem 1rem',
-            border: `1px solid ${isLowTime ? 'var(--rose)' : 'var(--stroke-2)'}`,
-            position: 'sticky', top: '20px', zIndex: 50
-        }}>
-          <span className={`glow-dot ${isLowTime ? 'rose' : 'cyan'}`}></span>
-          {formatTimer(timeLeft)}
-        </div>
+        {!isInstructor && (
+          <div style={{ 
+              display: 'flex', alignItems: 'center', gap: '0.5rem', 
+              fontFamily: 'var(--font-data)', fontSize: '14px', 
+              color: isLowTime ? 'var(--rose)' : 'var(--text-primary)',
+              background: 'var(--surface-1)', padding: '0.5rem 1rem',
+              border: `1px solid ${isLowTime ? 'var(--rose)' : 'var(--stroke-2)'}`,
+              position: 'sticky', top: '20px', zIndex: 50
+          }}>
+            <span className={`glow-dot ${isLowTime ? 'rose' : 'cyan'}`}></span>
+            {formatTimer(timeLeft)}
+          </div>
+        )}
       </div>
 
-      {/* Progress bar */}
-      <div style={{ width: '100%', height: '2px', background: 'var(--surface-3)', marginBottom: '2.5rem', overflow: 'hidden' }}>
-        <div style={{ 
-          width: `${(timeLeft / QUIZ_TIME_LIMIT) * 100}%`, 
-          height: '100%', 
-          background: isLowTime ? 'var(--rose)' : 'var(--emerald)', 
-          transition: 'width 1s linear'
-        }} />
-      </div>
+      {/* Progress bar (hide for instructors) */}
+      {!isInstructor && (
+        <div style={{ width: '100%', height: '2px', background: 'var(--surface-3)', marginBottom: '2.5rem', overflow: 'hidden' }}>
+          <div style={{ 
+            width: `${(timeLeft / QUIZ_TIME_LIMIT) * 100}%`, 
+            height: '100%', 
+            background: isLowTime ? 'var(--rose)' : 'var(--emerald)', 
+            transition: 'width 1s linear'
+          }} />
+        </div>
+      )}
 
       {/* Question Card */}
-      <div style={{ background: 'var(--surface-0)', padding: '2rem 1.5rem', marginBottom: '2.5rem', border: '2px solid var(--cyan)' }}>
+      <div style={{ background: 'var(--surface-0)', padding: '2rem 1.5rem', marginBottom: '2.5rem', border: `2px solid ${isInstructor ? 'var(--emerald)' : 'var(--cyan)'}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: '600', fontSize: '24px', lineHeight: 1.4, color: 'var(--text-primary)' }}>
              {currentQ.question}
@@ -162,36 +180,48 @@ export default function QuizTakingPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {currentQ.options.map((opt) => {
             const isSelected = answers[currentQ._id] === opt.label;
+            const isCorrect = isInstructor && opt.label === currentQ.correctAnswer;
+            
             return (
               <div 
                 key={opt.label}
                 onClick={() => handleSelect(currentQ._id, opt.label)}
                 style={{
                   padding: '1.25rem 1.5rem',
-                  border: isSelected ? '1px solid var(--cyan)' : '1px solid var(--stroke-1)',
-                  background: isSelected ? 'rgba(0, 200, 220, 0.1)' : 'var(--surface-1)',
-                  cursor: 'pointer',
+                  border: isCorrect ? '2px solid var(--emerald)' : (isSelected ? '1px solid var(--cyan)' : '1px solid var(--stroke-1)'),
+                  background: isCorrect ? 'rgba(16, 185, 129, 0.1)' : (isSelected ? 'rgba(0, 200, 220, 0.1)' : 'var(--surface-1)'),
+                  cursor: isInstructor ? 'default' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '1.25rem',
                   transition: 'all 0.2s',
-                  color: isSelected ? 'var(--cyan)' : 'var(--text-primary)'
+                  color: isCorrect ? 'var(--emerald)' : (isSelected ? 'var(--cyan)' : 'var(--text-primary)')
                 }}
               >
                 <div style={{ 
                   width: '24px', height: '24px', 
-                  background: isSelected ? 'var(--cyan)' : 'var(--surface-2)', 
+                  background: isCorrect ? 'var(--emerald)' : (isSelected ? 'var(--cyan)' : 'var(--surface-2)'), 
                   display: 'flex', alignItems: 'center', justifyContent: 'center', 
                   fontFamily: 'var(--font-data)', fontSize: '11px', fontWeight: 'bold',
-                  color: isSelected ? '#000' : 'var(--text-muted)'
+                  color: (isCorrect || isSelected) ? '#000' : 'var(--text-muted)'
                 }}>
                   {opt.label}
                 </div>
-                <span style={{ fontSize: '16px', lineHeight: '1.5' }}>{opt.text}</span>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '16px', lineHeight: '1.5' }}>{opt.text}</span>
+                  {isCorrect && <span style={{ fontSize: '10px', color: 'var(--emerald)', fontWeight: 'bold', letterSpacing: '0.05em' }}>CORRECT KEY</span>}
+                </div>
               </div>
             );
           })}
         </div>
+        
+        {isInstructor && currentQ.explanation && (
+          <div style={{ marginTop: '2rem', padding: '1.25rem', background: 'rgba(16, 185, 129, 0.05)', borderLeft: '4px solid var(--emerald)', borderRadius: '4px' }}>
+            <p style={{ fontSize: '12px', color: 'var(--emerald)', fontWeight: 'bold', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>EXPLANATION</p>
+            <p style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--text-secondary)' }}>{currentQ.explanation}</p>
+          </div>
+        )}
       </div>
 
       {/* Navigation Controls */}
@@ -205,8 +235,12 @@ export default function QuizTakingPage() {
         </button>
         
         {currentIdx === quiz.mcqs.length - 1 ? (
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Committing...' : 'Commit Evaluation'}
+          <button 
+            className={`btn ${isInstructor ? 'btn-secondary' : 'btn-primary'}`} 
+            onClick={isInstructor ? () => router.back() : handleSubmit} 
+            disabled={submitting}
+          >
+            {isInstructor ? 'Exit Preview' : (submitting ? 'Committing...' : 'Commit Evaluation')}
           </button>
         ) : (
           <button 

@@ -2,6 +2,7 @@ const Classroom = require('../models/Classroom');
 const Video = require('../models/Video');
 const Quiz = require('../models/Quiz');
 const User = require('../models/User');
+const QuizAttempt = require('../models/QuizAttempt');
 const generateClassCode = require('../utils/classCodeGenerator');
 const { fetchTranscript } = require('../services/transcriptService');
 const { sendTranscriptToN8nAsync } = require('../services/n8nTranscriptionService');
@@ -92,13 +93,39 @@ exports.joinClassroom = async (req, res) => {
 // @access  Private
 exports.getClassroomById = async (req, res) => {
   try {
+    const populateOptions = [
+      { path: 'students', select: 'name email avatar' },
+      { path: 'videos' },
+      { path: 'instructorId', select: 'name' }
+    ];
+
+    if (req.user.role === 'instructor') {
+      populateOptions.push({ path: 'quizzes' });
+    } else {
+      populateOptions.push({ 
+        path: 'quizzes', 
+        match: { isPublished: true },
+        select: '-mcqs.correctAnswer -mcqs.explanation -shortAnswerQuestions.expectedAnswer'
+      });
+    }
+
     const classroom = await Classroom.findById(req.params.classroomId)
-      .populate('students', 'name email avatar')
-      .populate('videos')
-      .populate('quizzes');
+      .populate(populateOptions);
 
     if (!classroom) return res.status(404).json({ success: false, message: 'Classroom not found' });
-    res.status(200).json({ success: true, classroom });
+    
+    // For students, also fetch their attempt status for each quiz
+    let completedAttempts = [];
+    if (req.user.role === 'student') {
+      const QuizAttempt = require('../models/QuizAttempt');
+      completedAttempts = await QuizAttempt.find({
+        studentId: req.user.id,
+        quizId: { $in: classroom.quizzes.map(q => q._id) },
+        status: 'completed'
+      }).select('quizId _id');
+    }
+
+    res.status(200).json({ success: true, classroom, completedAttempts });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -176,6 +203,8 @@ exports.generateClassroomQuiz = async (req, res) => {
     let n8nResponse;
     try {
       n8nResponse = await n8nService.generateQuiz({
+        session_id: video._id.toString(),
+        videoId: video.youtubeVideoId,
         transcript: video.transcript.raw,
         video_id: video._id.toString(),
         video_title: video.title,
@@ -187,26 +216,36 @@ exports.generateClassroomQuiz = async (req, res) => {
       return res.status(504).json({ success: false, error: 'AI_PROCESSING_TIMEOUT', message: err.message });
     }
 
-    const quizData = n8nResponse?.mcqs ? n8nResponse : {
-      title: `${video.title} Quiz`,
-      videoId: video._id,
-      createdBy: req.user.id,
-      mode: 'college',
-      difficulty,
-      isPublished: false, // Instructor must explicitly publish
-      mcqs: [],
-      shortAnswerQuestions: [],
-      totalMCQs: 0,
-      totalSAQs: 0
-    };
+    let rawMcqs = [];
+    if (Array.isArray(n8nResponse) && n8nResponse[0]?.output?.mcqs) {
+      rawMcqs = n8nResponse[0].output.mcqs;
+    } else if (n8nResponse?.output?.mcqs) {
+      rawMcqs = n8nResponse.output.mcqs;
+    } else if (n8nResponse?.mcqs) {
+      rawMcqs = n8nResponse.mcqs;
+    }
+
+    const transformedMcqs = rawMcqs.map(m => ({
+      question: m.question,
+      options: m.options ? Object.entries(m.options).map(([label, text]) => ({ label, text })) : [],
+      correctAnswer: m.correctAnswer,
+      explanation: m.explanation,
+      exacttimestamp: m.citation?.timestamprange || '',
+      youtubevideotitle: m.citation?.youtubevideotitle || '',
+      confidence: m.confidence || 'High'
+    }));
 
     const quiz = await Quiz.create({
-      ...quizData,
+      title: `${video.title} Quiz`,
       videoId: video._id,
       classroomId,
       createdBy: req.user.id,
       mode: 'college',
-      isPublished: false
+      difficulty,
+      isPublished: false,
+      mcqs: transformedMcqs,
+      totalMCQs: transformedMcqs.length,
+      totalSAQs: 0
     });
 
     const classroom = await Classroom.findById(classroomId);
@@ -241,6 +280,29 @@ exports.publishQuiz = async (req, res) => {
   }
 };
 
+// @desc    Delete quiz from classroom
+// @route   DELETE /api/classroom/:classroomId/quiz/:quizId
+// @access  Private/Instructor
+exports.deleteQuiz = async (req, res) => {
+  try {
+    const { classroomId, quizId } = req.params;
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) return res.status(404).json({ success: false, message: 'Quiz not found' });
+    if (quiz.createdBy.toString() !== req.user.id) {
+       return res.status(403).json({ success: false, message: 'Not authorized to delete this quiz' });
+    }
+    const classroom = await Classroom.findById(classroomId);
+    if (classroom) {
+      classroom.quizzes = classroom.quizzes.filter(id => id.toString() !== quizId);
+      await classroom.save();
+    }
+    await quiz.deleteOne();
+    res.status(200).json({ success: true, message: 'Quiz deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Get all classes for a student
 // @route   GET /api/classroom/student/my-classes
 // @access  Private/Student
@@ -251,9 +313,29 @@ exports.getStudentClasses = async (req, res) => {
       .populate({
         path: 'quizzes',
         match: { isPublished: true },
-        select: '-mcqs.correctAnswer -mcqs.explanation -shortAnswerQuestions.expectedAnswer' // Hide answers
+        select: '_id'
       });
-    res.status(200).json({ success: true, classrooms });
+
+    const classroomsWithStats = await Promise.all(classrooms.map(async (classDoc) => {
+      const classroomObj = classDoc.toObject();
+      const publishedQuizIds = classDoc.quizzes.map(q => q._id);
+
+      const completedCount = await QuizAttempt.countDocuments({
+        studentId: req.user.id,
+        quizId: { $in: publishedQuizIds },
+        status: 'completed'
+      });
+
+      classroomObj.stats = {
+        totalPublished: publishedQuizIds.length,
+        completed: completedCount,
+        pending: publishedQuizIds.length - completedCount
+      };
+
+      return classroomObj;
+    }));
+
+    res.status(200).json({ success: true, classrooms: classroomsWithStats });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -277,18 +359,96 @@ exports.getClassroomQuizzes = async (req, res) => {
 // @access  Private/Instructor
 exports.getClassroomAnalytics = async (req, res) => {
   try {
-    // Basic mock implementation for analytics. Real implementation would aggregate QuizAttempts
+    const { classroomId } = req.params;
+    
+    // Fetch base data
+    const classroom = await Classroom.findById(classroomId);
+    if (!classroom) return res.status(404).json({ success: false, message: 'Classroom not found' });
+
+    const totalStudents = classroom.students.length;
+    const totalQuizzes = classroom.quizzes.length;
+
+    // Fetch quiz attempts to calculate averages
+    const attempts = await QuizAttempt.find({ classroomId, status: 'completed' });
+    
+    // Aggregation logic
+    const totalAttempts = attempts.length;
+    const averageClassScore = totalAttempts > 0 
+      ? Math.round(attempts.reduce((sum, a) => sum + a.totalScore, 0) / totalAttempts)
+      : 0;
+
+    const completionRate = totalStudents > 0 && totalQuizzes > 0
+      ? Math.round((totalAttempts / (totalStudents * totalQuizzes)) * 100)
+      : 0;
+
+    // Quiz-wise performance
+    const quizzes = await Quiz.find({ classroomId });
+    const quizAverages = quizzes.map(quiz => {
+      const quizAttempts = attempts.filter(a => a.quizId.toString() === quiz._id.toString());
+      return {
+        label: quiz.title,
+        avg: quizAttempts.length > 0 
+          ? Math.round(quizAttempts.reduce((sum, a) => sum + a.totalScore, 0) / quizAttempts.length)
+          : 0
+      };
+    });
+
+    // Student performance breakdown
+    const studentPerformance = await Promise.all(classroom.students.map(async (studentId) => {
+      const student = await User.findById(studentId);
+      const studentAttempts = attempts.filter(a => a.studentId.toString() === studentId.toString());
+      
+      return {
+        name: student?.name || 'Unknown Student',
+        completedQuizzes: studentAttempts.length,
+        avgScore: studentAttempts.length > 0
+          ? Math.round(studentAttempts.reduce((sum, a) => sum + a.totalScore, 0) / studentAttempts.length)
+          : 0
+      };
+    }));
+
     res.status(200).json({
       success: true,
       analytics: {
-        totalStudents: 0,
-        totalQuizzes: 0,
-        averageClassScore: 0,
-        studentPerformance: [],
+        totalStudents,
+        totalQuizzes,
+        averageClassScore,
+        completionRate: Math.min(completionRate, 100),
+        quizAverages,
+        studentPerformance,
         questionWiseAnalytics: [],
         weakTimestamps: []
       }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Delete a classroom
+// @route   DELETE /api/classroom/:classroomId
+// @access  Private/Instructor
+exports.deleteClassroom = async (req, res) => {
+  try {
+    const classroom = await Classroom.findById(req.params.classroomId);
+
+    if (!classroom) {
+      return res.status(404).json({ success: false, message: 'Classroom not found' });
+    }
+
+    // Check if the user is the instructor of this classroom
+    if (classroom.instructorId.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this classroom' });
+    }
+
+    // Delete all quizzes, attempts, and videos associated with this classroom
+    await Quiz.deleteMany({ classroomId: req.params.classroomId });
+    await Video.deleteMany({ classroomId: req.params.classroomId });
+    await QuizAttempt.deleteMany({ classroomId: req.params.classroomId });
+    
+    await classroom.deleteOne();
+
+    res.status(200).json({ success: true, message: 'Classroom deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

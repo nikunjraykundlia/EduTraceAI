@@ -45,37 +45,41 @@ export default function Dashboard() {
         <p className="greeting-subtitle">System ready. What would you like to process today?</p>
       </div>
 
-      <div className="section-label">01 — Performance Readouts</div>
+      {user.role === 'student' && (
+        <>
+          <div className="section-label">01 — Performance Readouts</div>
 
-      {/* Stats Summary row */}
-      <div className="stats-grid">
-        <div className="stat-card top-highlight">
-          <div className="stat-header">
-            <span className="glow-dot amber"></span>
-            <span className="stat-label">Coins Balance</span>
-          </div>
-          <div className="stat-value">{coins}</div>
-          <div className="stat-trend">Reward credits available</div>
-        </div>
+          {/* Stats Summary row */}
+          <div className="stats-grid">
+            <div className="stat-card top-highlight">
+              <div className="stat-header">
+                <span className="glow-dot amber"></span>
+                <span className="stat-label">Coins Balance</span>
+              </div>
+              <div className="stat-value">{coins}</div>
+              <div className="stat-trend">Reward credits available</div>
+            </div>
 
-        <div className="stat-card top-highlight">
-          <div className="stat-header">
-            <span className="glow-dot electric"></span>
-            <span className="stat-label">Quizzes Taken</span>
-          </div>
-          <div className="stat-value">{user.quizzesTaken || 0}</div>
-          <div className="stat-trend">Knowledge extraction sessions</div>
-        </div>
+            <div className="stat-card top-highlight">
+              <div className="stat-header">
+                <span className="glow-dot electric"></span>
+                <span className="stat-label">Quizzes Taken</span>
+              </div>
+              <div className="stat-value">{user.quizzesTaken || 0}</div>
+              <div className="stat-trend">Knowledge extraction sessions</div>
+            </div>
 
-        <div className="stat-card top-highlight">
-          <div className="stat-header">
-            <span className="glow-dot emerald"></span>
-            <span className="stat-label">Avg Accuracy</span>
+            <div className="stat-card top-highlight">
+              <div className="stat-header">
+                <span className="glow-dot emerald"></span>
+                <span className="stat-label">Avg Accuracy</span>
+              </div>
+              <div className="stat-value">{(user.averageScore || 0).toFixed(0)}%</div>
+              <div className="stat-trend">Retained structural data</div>
+            </div>
           </div>
-          <div className="stat-value">{(user.averageScore || 0).toFixed(0)}%</div>
-          <div className="stat-trend">Retained structural data</div>
-        </div>
-      </div>
+        </>
+      )}
 
       <div className="section-label">02 — Operating Modes</div>
 
